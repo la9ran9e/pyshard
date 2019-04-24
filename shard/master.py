@@ -1,6 +1,8 @@
 import hashlib
 import bisect
 
+from . import Shard
+
 
 def _normalize_number(num, boundary):
     # Normalizes between 0 and 1
@@ -12,6 +14,7 @@ def _hash_key(key, method, boundary):
     hashed_key = int(hash_function(str(key).encode()).hexdigest(), 16)
 
     return _normalize_number(hashed_key, boundary)
+
 
 def _make_bins(num):
 	bin_step = 1.0/num
@@ -29,6 +32,8 @@ def _make_bins(num):
 
 
 class Master:
+	_shard = Shard
+
 	def __init__(self, shards_num=2, method='md5'):
 		self._method = method
 		self._bin_step = 1/shards_num
@@ -40,7 +45,7 @@ class Master:
 
 		for bin_ in self._bins:
 			next_bin = bin_+self._bin_step
-			bins[bin_] = Shard(start=bin_, end=next_bin, max_size=size)
+			bins[bin_] = self._shard(start=bin_, end=next_bin, max_size=size)
 		
 		return bins
 
@@ -80,7 +85,7 @@ class Master:
 		left_bin = self._bins[i-1]
 		right_bin = self._bins[i+1]
 		self._bins[i:i] = [bin_]
-		new_shard = Shard(start=bin_, end=right_bin, max_size=size)
+		new_shard = self._shard(start=bin_, end=right_bin, max_size=size)
 		left_shard = self._shards[left_bin]
 
 		_to_move = [key for key, value in left_shard.items() if value['hash'] >= bin_]
@@ -115,53 +120,3 @@ class Master:
 			}
 
 		return stat
-
-
-class App:
-	def __init__(self, master):
-		self._master = master
-
-	def write(self, key, item):
-		hash_key_, shard = self._master.get_shard(key)
-		try:
-			size = shard.write(key, hash_key_, item)
-		except MemoryError:
-			size = 0
-
-		return size
-
-	def read(self, key):
-		_, shard = self._master.get_shard(key)
-
-		return shard.read(key)
-
-	def __getattr__(self, attr):
-		return getattr(self._master, attr)
-	
-
-import pprint
-
-pp = pprint.PrettyPrinter()
-
-master = Master()
-app = App(master)
-app.write('name1', 1)
-print(app.stat)
-app.write('name2', {'a': 'a'})
-print(app.stat)
-app.write('name3', 3)
-print(app.stat)
-app.write('name4', {'b': 'b'})
-app.write('name5', {'b': 'b'})
-app.write('name6', {'b': 'b'})
-app.write('name7', {'b': 'b'})
-app.write('name8', {'b': 'b'})
-pp.pprint(app.stat)
-app.split(2)
-pp.pprint(app.stat)
-app.insert(.2)
-pp.pprint(app.stat)
-app.remove(.2)
-pp.pprint(app.stat)
-
-
