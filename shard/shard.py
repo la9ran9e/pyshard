@@ -12,13 +12,10 @@ def _get_size(obj):
 
 
 class Shard:
-	DEFAULTS = {
-		'storage': dict
-	}
-
-	def __init__(self, storage=None, start=None, end=None, max_size=1024, bins_num=5):
+	def __init__(self, storage_class=dict, start=None, end=None, max_size=1024, bins_num=5,
+				 **storage_kwargs):
 		self._empty = True
-		self.storage = storage() if storage else self.DEFAULTS['storage']()
+		self.storage = storage_class(**storage_kwargs)
 		self.size = 0
 		self.max_size = max_size
 		self._start = start
@@ -32,19 +29,19 @@ class Shard:
 	@property
 	def start(self):
 		return self._start
-	
+
 	@property
 	def end(self):
 		return self._end
 
 	def estimate_bin_step(self):
 		if self._start is not None and self._end is not None:
-			self._bin_step = (self._end-self._start)/self._bins_num
+			self._bin_step = (self._end - self._start) / self._bins_num
 		else:
 			self._bin_step = None
 
 		return self._bin_step
-	
+
 	@start.setter
 	def start(self, value):
 		self._start = value
@@ -54,11 +51,11 @@ class Shard:
 		self._end = value
 
 	def _get_bin(self, hash):
-		steps = (hash - self._start)//self._bin_step
-		bin_ = self._start + (self._bin_step*steps)
+		steps = (hash - self._start) // self._bin_step
+		bin_ = self._start + (self._bin_step * steps)
 
 		return bin_
-	
+
 	@property
 	def empty(self):
 		return len(self.storage) == 0
@@ -66,7 +63,7 @@ class Shard:
 	@property
 	def free_mem(self):
 		return self.max_size - self.size
-	
+
 	def write(self, key, hash, record):
 		item_size = _get_size(record)
 		if self.size + item_size > self.max_size:
@@ -91,6 +88,9 @@ class Shard:
 
 	def pop(self, key):
 		record = self.storage.pop(key, None)
+		if record is None:
+			return 
+
 		item_size = _get_size(record)
 		self.size -= item_size
 
