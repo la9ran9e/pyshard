@@ -31,7 +31,7 @@ class Server(Protocol):
 		print(f'recieved: {msg}')
 
 
-class InternalMethods:
+class InternalAttrs:
 	def init_shard(self, *args, **kwargs):
 		if self._shard:
 			return
@@ -40,12 +40,19 @@ class InternalMethods:
 		print('shard:', self._shard)
 
 
-class ShardServer(Server, InternalMethods):
+class ShardServer(Server, InternalAttrs):
+	_methods = frozenset(['init_shard', 'write', 'read', 'pop', 'remove'])
+	_properties = frozenset([])
+
 	def __init__(self, host, port, **kwargs):
 		self._addr = (host, port)
 		self._shard = None
 
 		super(ShardServer, self).__init__(**kwargs)
+
+	@property
+	def ready(self):
+		return self._shard is not None
 
 	def _on_recieved(self, msg):
 		print(f'recieved: {msg}')
@@ -63,23 +70,23 @@ class ShardServer(Server, InternalMethods):
 		return command, body['args'], body['kwargs']
 
 	def _execute(self, command, *args, **kwargs):
-		method = self._get_method(command)
-		if not method:
-			return
+		attr = self._get_attr(command)
 
-		ret = method(*args, **kwargs)
+		if command in self._methods:
+			ret = attr(*args, **kwargs)
+		else:
+			return
 
 		return ret
 
-	def _get_method(self, command):
-		meth = getattr(self._shard, command, None)
-		if not meth:
-			meth = self._get_internal_method(command)
+	def _get_attr(self, command):
+		attr = getattr(self._shard, command, None)
+		if not attr:
+			attr = self._get_internal_attr(command)
 
-		return meth
+		return attr
 
-	def _get_internal_method(self, command):
-		meth = getattr(self, command, None)
-		print(meth)
+	def _get_internal_attr(self, command):
+		attr = getattr(self, command, None)
 
-		return meth
+		return attr

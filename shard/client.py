@@ -4,8 +4,18 @@ from .protocol import Protocol
 
 
 class Connection(Protocol):
+	def __init__(self, **kwargs):
+		self.connectd = False
+
+		super(Connection, self).__init__(**kwargs)
+
 	def connect(self):
 		self._sock.connect(self._addr)
+		self.connected = True
+
+	def close(self):
+		super(Connection, self).close()
+		self.connected = False
 
 	def __getattr__(self, attr):
 		return getattr(self._sock, attr)

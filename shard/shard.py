@@ -12,18 +12,20 @@ def _get_size(obj):
 
 
 class Shard:
-	def __init__(self, storage_class=dict, start=None, end=None, max_size=1024, bins_num=5,
+	def __init__(self, node, storage_class=dict, start=None, end=None, max_size=1024, bins_num=5,
+				 buffer_size=1024,
 				 **storage_kwargs):
 		self._empty = True
 		self.storage = storage_class(**storage_kwargs)
+		self.node = node
+		self._buffer_size = buffer_size
+
 		self.size = 0
 		self.max_size = max_size
 		self._start = start
 		self._end = end
-
 		self._bins_num = bins_num
 		self._bin_step = self.estimate_bin_step()
-
 		self.distr = defaultdict(int)
 
 	@property
@@ -112,6 +114,24 @@ class Shard:
 		self.distr[bin_] -= 1
 
 		return item_size
+
+	def reloc(self, key, node_addr):
+		client = ShardClient(*node_addr, buffer_size=self._buffer_size)
+		item = client.pop(key)
+
+		return self.write(key, **item)
+
+	def get_stat(self):
+		stat = {
+			'start': self.start,
+			'end': self.end,
+			'empty': self.empty,
+			'max_size': self.max_size,
+			'free_mem': self.free_mem,
+			'distribution': dict(self.distr)
+		}
+
+		return stat
 
 	def __getattr__(self, attr):
 		return getattr(self.storage, attr)

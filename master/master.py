@@ -1,7 +1,7 @@
 import hashlib
 import bisect
 
-from . import Shard
+from shard.client import ShardClient as ShardBase
 
 
 def _normalize_number(num, boundary):
@@ -31,23 +31,39 @@ def _make_bins(num):
 	return bins
 
 
+class _Nodes(list):
+	def getfree(self):
+		for node in self:
+			if not node.acquired:
+				return node
+
+
 class Master:
 	_shard = Shard
 
-	def __init__(self, shards_num=2, method='md5'):
+	def __init__(self, *nodes, shards_num=2, method='md5'):
 		self._method = method
 		self._bin_step = 1/shards_num
 		self._bins = _make_bins(shards_num)
 		self._shards = self._make_shards()
+		self._nodes = _Nodes(*nodes)
 
 	def _make_shards(self, size=1024):
-		bins = dict()
+		shards = dict()
 
-		for bin_ in self._bins:
+		for bin_, node in zip(self._bins, self._nodes):
 			next_bin = bin_+self._bin_step
-			bins[bin_] = self._shard(start=bin_, end=next_bin, max_size=size)
+			shard = self._shard(node, start=bin_, end=next_bin, max_size=size)
+			shard.connect()
+
+			if not shard.ready:
+				shard.init_shard()
+			else:
+				shard.restat()
+
+			bins[bin_] = shard
 		
-		return bins
+		return shards
 
 	def _get_bin(self, key):
 		id_ = _hash_key(key, self._method, 1e7)
@@ -68,30 +84,38 @@ class Master:
 		for shard in old_shards.values():
 			self._do_distr(shard)
 
-	def _do_distr(self, shard, target=None):
-		if not target:
-			for key, value in shard.items():
+	def _do_distr(self, shard, tg_shard=None):
+		if not tg_shard:
+			for key, value in shard.values():
 				id_ = value['hash']
 				i = bisect.bisect_left(self._bins, id_)-1
+
 				bin_ = self._bins[i]
+				tg_shard = self._shards[bin_]
 
-				self._shards[bin_].write(key, **value)
+				tg_shard.reloc(key, shard.node)
+
 		else:
-			for key, value in shard.items():
-				target.write(key, **value)
+			for key in shard.key():
+				tg_shard.reloc(key, shard.node)
 
-	def insert(self, bin_, size=1024):
+	def insert(self, bin_, node=None, size=1024):
+		if not node:
+			node = self._nodes.getfree()
+			node.acquire()
+
 		i = bisect.bisect_right(self._bins, bin_)
 		left_bin = self._bins[i-1]
 		right_bin = self._bins[i+1]
 		self._bins[i:i] = [bin_]
-		new_shard = self._shard(start=bin_, end=right_bin, max_size=size)
+		new_shard = self._shard(node, start=bin_, end=right_bin, max_size=size)
+		new_shard.connect()
 		left_shard = self._shards[left_bin]
 
 		_to_move = [key for key, value in left_shard.items() if value['hash'] >= bin_]
+
 		for key in _to_move:
-			item = left_shard.pop(key)
-			new_shard.write(key, **item)
+			new_shard.reloc(key, left_shard.node)
 
 		self._shards[bin_] = new_shard
 
@@ -99,10 +123,13 @@ class Master:
 		i = self._bins.index(bin_)
 		del self._bins[i]
 		tmp = self._shards[bin_]
-		del self._shards[bin_]
+		self._shards[bin_]
 		left_bin = self._bins[i-1]
-		target = self._shards[left_bin]
-		self._do_distr(tmp, target)
+		tg_shard = self._shards[left_bin]
+		self._do_distr(tmp, tg_shard)
+
+		tmp.close()
+		tmp.node.release()
 
 	def rebalance(self, shard):
 		...
