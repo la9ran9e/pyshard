@@ -44,3 +44,6 @@ class Protocol:
 	def _pack(self, data):
 		bdata = bytes(str(data), encoding='UTF-8')
 		return bdata
+
+	def close(self):
+		self._sock.close()

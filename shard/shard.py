@@ -12,12 +12,11 @@ def _get_size(obj):
 
 
 class Shard:
-	def __init__(self, node, storage_class=dict, start=None, end=None, max_size=1024, bins_num=5,
+	def __init__(self, storage_class=dict, start=None, end=None, max_size=1024, bins_num=5,
 				 buffer_size=1024,
 				 **storage_kwargs):
 		self._empty = True
 		self.storage = storage_class(**storage_kwargs)
-		self.node = node
 		self._buffer_size = buffer_size
 
 		self.size = 0

@@ -71,6 +71,9 @@ class ShardServer(Server, InternalAttrs):
 
 	def _execute(self, command, *args, **kwargs):
 		attr = self._get_attr(command)
+		
+		if not attr:
+			return
 
 		if command in self._methods:
 			ret = attr(*args, **kwargs)

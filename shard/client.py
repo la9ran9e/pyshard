@@ -5,7 +5,7 @@ from .protocol import Protocol
 
 class Connection(Protocol):
 	def __init__(self, **kwargs):
-		self.connectd = False
+		self.connected = False
 
 		super(Connection, self).__init__(**kwargs)
 
@@ -16,9 +16,6 @@ class Connection(Protocol):
 	def close(self):
 		super(Connection, self).close()
 		self.connected = False
-
-	def __getattr__(self, attr):
-		return getattr(self._sock, attr)
 
 
 class ShardClient(Connection):
