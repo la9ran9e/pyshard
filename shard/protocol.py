@@ -5,9 +5,15 @@ import struct
 class Protocol:
 	
 	def __init__(self, buffer_size=1024):
-		self._sock = socket(AF_INET, SOCK_STREAM)
+		self._sock = self._make_sock()
 		self._buffer_size = buffer_size
 		self._prefix = struct.Struct(f'I')
+
+	@staticmethod
+	def _make_sock():
+		sock = socket(AF_INET, SOCK_STREAM)
+
+		return sock
 	
 	def _recvall(self, sock):
 		data = b''
@@ -42,7 +48,7 @@ class Protocol:
 		sock.sendall(data)
 
 	def _pack(self, data):
-		bdata = bytes(str(data), encoding='UTF-8')
+		bdata = bytes(data, encoding='UTF-8')
 		return bdata
 
 	def close(self):

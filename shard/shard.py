@@ -1,6 +1,8 @@
 import sys
 from collections import defaultdict
 
+from .client import Pool
+
 
 def _get_size(obj):
 	if isinstance(obj, dict):
@@ -12,12 +14,13 @@ def _get_size(obj):
 
 
 class Shard:
-	def __init__(self, storage_class=dict, start=None, end=None, max_size=1024, bins_num=5,
+	def __init__(self, start, end, storage_class=dict, max_size=1024, bins_num=5,
 				 buffer_size=1024,
 				 **storage_kwargs):
 		self._empty = True
 		self.storage = storage_class(**storage_kwargs)
 		self._buffer_size = buffer_size
+		self.pool = Pool()
 
 		self.size = 0
 		self.max_size = max_size
@@ -114,11 +117,13 @@ class Shard:
 
 		return item_size
 
-	def reloc(self, key, node_addr):
-		client = ShardClient(*node_addr, buffer_size=self._buffer_size)
+	def reloc(self, key, node):
+		# relocates item from remote shard
+		client = self.pool.get(node)
 		item = client.pop(key)
-
-		return self.write(key, **item)
+		
+		if item:
+			return self.write(key, **item)
 
 	def get_stat(self):
 		stat = {

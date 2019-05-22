@@ -59,8 +59,8 @@ class ShardServer(Server, InternalAttrs):
 		command, args, kwargs = self._parse(msg)
 
 		ret = self._execute(command, *args, **kwargs)
-
-		return ret
+		
+		return self._build_msg(ret)
 
 	def _parse(self, msg):
 		parts = msg.split('\t')
@@ -93,3 +93,9 @@ class ShardServer(Server, InternalAttrs):
 		attr = getattr(self, command, None)
 
 		return attr
+
+	def _build_msg(self, response):
+		msg = {"message": response}
+		json_msg = json.dumps(msg)
+
+		return json_msg

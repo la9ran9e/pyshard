@@ -8,6 +8,6 @@ if __name__ == '__main__':
 	c.init_shard(.0, .5)
 	print(c.write('a', .01, 'a'))
 	print(c.read('a'))
-	print(c.pop('a'))
+	# print(c.pop('a'))
 
 	c.close()
