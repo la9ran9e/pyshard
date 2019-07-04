@@ -1,101 +1,287 @@
-import json
+# import json
 
-from .protocol import Protocol
+# from .protocol import Protocol
+# from .shard import Shard
+
+
+import socket
+import struct
+import json
+import asyncio
+from collections import defaultdict
+from typing import Tuple, Any
+
+import logging
+
+from core.connect import AsyncProtocol
 from .shard import Shard
 
-
-class Server(Protocol):
-	def _do_run(self):
-		self._sock.bind(self._addr)
-		self._sock.listen(1)
-
-		while True:
-			conn, addr = self._sock.accept()
-			while True:
-				try:
-					msg = self._recvall(conn)
-				except RuntimeError:
-					print('close connection')
-					conn.close()
-					break
-				except Exception as exc:
-					print(exc)
-					conn.close()
-					break
-
-				ret = self._on_recieved(msg)
-
-				self._sendall(conn, ret)
-
-	def _on_recieved(self, msg):
-		print(f'recieved: {msg}')
+from settings import settings
 
 
-class InternalAttrs:
-	def init_shard(self, *args, **kwargs):
-		if self._shard:
-			return
+logger = logging.getLogger(__name__)
 
-		self._shard = Shard(*args, **kwargs)
-		print('shard:', self._shard)
+Kb = 1024
+Codec = str
 
 
-class ShardServer(Server, InternalAttrs):
-	_methods = frozenset(['init_shard', 'write', 'read', 'pop', 'remove'])
-	_properties = frozenset([])
+def _to_bytes(str_obj: str, codec: Codec) -> bytes:
+    return bytes(str_obj, encoding=codec)
 
-	def __init__(self, host, port, **kwargs):
-		self._addr = (host, port)
-		self._shard = None
 
-		super(ShardServer, self).__init__(**kwargs)
+def _from_bytes(bytes_obj: bytes, codec: Codec) -> str:
+    return bytes_obj.decode(codec)
 
-	@property
-	def ready(self):
-		return self._shard is not None
 
-	def _on_recieved(self, msg):
-		print(f'recieved: {msg}')
-		command, args, kwargs = self._parse(msg)
+class _Channel(AsyncProtocol):
+    def __init__(self, sock, loop, buffer_size=1024):
+        self._sock = sock
+        self._loop = loop
+        self._chan = None
+        self.token = None
+        self.permission_group = None
 
-		ret = self._execute(command, *args, **kwargs)
-		
-		return self._build_msg(ret)
+        super(_Channel, self).__init__(buffer_size, loop)
 
-	def _parse(self, msg):
-		parts = msg.split('\t')
-		command = parts[0]
-		body = json.loads(parts[1])
+    async def connect(self):
+        self._chan = await self._loop.sock_accept(self._sock)
+        return self
 
-		return command, body['args'], body['kwargs']
+    async def retrieve_token(self):
+        rdata = await self.do_recv(self.sock)
+        self.token = _from_bytes(rdata, self._codec)
 
-	def _execute(self, command, *args, **kwargs):
-		attr = self._get_attr(command)
-		
-		if not attr:
-			return
+    @property
+    def sock(self):
+        return self._chan[0]
 
-		if command in self._methods:
-			ret = attr(*args, **kwargs)
-		else:
-			return
+    @property
+    def addr(self):
+        return self._chan[1]
 
-		return ret
 
-	def _get_attr(self, command):
-		attr = getattr(self._shard, command, None)
-		if not attr:
-			attr = self._get_internal_attr(command)
+def _auth(func):
+    async def wrapper(self, *args, **kwargs):
+        chan = await func(self, *args, **kwargs)
+        await chan.retrieve_token()
+        if chan.token in self._token_storage:
+            chan.permission_group = self._token_storage[chan.token].get('group')
+            return chan
+        else:
+            raise KeyError(f'Not authorized user token={chan.token}')
 
-		return attr
+    return wrapper if settings.AUTH else func
 
-	def _get_internal_attr(self, command):
-		attr = getattr(self, command, None)
 
-		return attr
+class Server(AsyncProtocol):
+    __routes__ = dict()
+    __permissions__ = defaultdict(set)
 
-	def _build_msg(self, response):
-		msg = {"message": response}
-		json_msg = json.dumps(msg)
+    def __init__(self, host, port, buffer_size, loop, op_buffer_size=1000):
+        self.sock = self._make_sock(host, port)
+        self._default_queue = asyncio.Queue(maxsize=buffer_size)
+        self._master_queue = asyncio.Queue(maxsize=buffer_size//2)
+        self._master_group = 'master'
+        self._token_storage = defaultdict(dict)
 
-		return json_msg
+        # self._token_storage['master']['group'] = self._master_group
+
+        self._shard_locked = False
+        self._proc_locker = asyncio.Lock()
+
+        super(Server, self).__init__(buffer_size, loop)
+
+    @staticmethod
+    def _make_sock(host, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setblocking(False)
+        sock.bind((host, port))
+        sock.listen(10)
+
+        return sock
+
+    def _dispatch(self, endpoint):
+        return self.__routes__[endpoint]
+
+    @classmethod
+    def endpoint(cls, path, with_lock=True, permission_group=None):
+        def wrapper(method):
+            cls.__routes__[path] = method
+            if permission_group:
+                cls.__permissions__[path].add(permission_group)
+            
+            async def method_with_lock(self, *args, **kwargs):
+                if self._shard_locked:
+                    raise Exception("Shard is locked")
+
+                return await method(self, *args, **kwargs)
+
+            return method_with_lock if with_lock else method
+        return wrapper
+
+    def _check_permission(self, chan, endpoint):
+        if not self.__permissions__[endpoint]:
+            return
+
+        if chan.permission_group not in self.__permissions__[endpoint]:
+            raise Exception("Permission denied")
+
+    async def _dispatch_and_execute(self, chan, endpoint, *args, **kwargs):
+        self._check_permission(chan, endpoint)
+        with self._proc_locker:
+            return await self._dispatch(endpoint)(self, *args, **kwargs)
+    
+    async def _do_run(self):
+        await asyncio.gather(self._worker(self._master_queue),
+                             self._worker(self._default_queue),
+                             self._main_loop())
+
+    async def _worker(self, queue):
+        while True:
+            chan, endpoint, args, kwargs = await queue.get()
+            try:
+                rresp = self._dispatch_and_execute(chan, endpoint, *args, **kwargs)
+            except Exception as err:
+                resp = self._handle_error_resp(err)
+            else:
+                resp = self._handle_success_resp(rresp)
+
+            await self.do_send(_to_bytes(resp, self._codec), chan.sock)
+
+            queue.task_done()
+
+    async def _main_loop(self):
+        async for chan in self._channel_iterator():
+            logger.debug(f"Connection accepted from: {chan.addr}")
+            self._loop.create_task(self._handle_channel(chan))
+
+        self.sock.close()
+
+    async def _handle_channel(self, chan):
+        async for msg in self._msg_iterator(chan):
+            try:
+                endpoint, args, kwargs = self._parse_request(msg)
+            except Exception as err:
+                logger.warning(f"Couldn\'t parse message={msg!r}, addr={chan.addr} error: {err}")
+                break
+
+            if chan.permission_group == self._master_group:
+                queue = self._master_queue
+            else:
+                queue = self._default_queue
+
+            await queue.put((chan, endpoint, args, kwargs))
+
+        chan.sock.close()
+
+    async def _channel_iterator(self):
+        while True:
+            logger.debug("Waiting for connection...")
+            try:
+                yield await self._accept(self.sock, self._loop)
+            except KeyError as err:
+                logger.warning(err)
+            except asyncio.TimeoutError:
+                logger.warning('Couldn\'t recieve token from peer')
+
+    @_auth
+    async def _accept(self, sock, loop):
+        return await _Channel(sock, loop).connect()
+
+    async def _msg_iterator(self, channel):
+        while True:
+            try:
+                data = await self.do_recv(channel.sock)
+            except struct.error as err:
+                logger.error(f'Couldn\'t unpack message: {err}')
+            except RuntimeError as err:
+                logger.warning(f'Addr={channel.addr}: {err}')
+                break
+            except AssertionError as err:
+                logger.warning(f'Addr={channel.addr} send not enought data. {err}')
+                break
+            else:
+                logger.debug(f'Received message from addr={channel.addr}: {data}')
+                yield _from_bytes(data, self._codec)
+
+    def _parse_request(self, request: str) -> Tuple[str, list, dict]:
+        req = json.loads(request)
+
+        return req['endpoint'], req.get('args', list()), req.get('kwargs', dict())
+
+    def _handle_success_resp(self, rresp: Any) -> str:
+        resp = {"type": "success", "message": rresp}
+
+        return json.dumps(resp)
+
+    def _handle_error_resp(self, err: Exception) -> str:
+        resp = {"type": "error", "message": err.args}
+
+        return json.dumps(resp)
+
+
+class ShardServer(Server):
+    def __init__(self, host, port, buffer_size=1024, loop=None, **shard_kwargs):
+        self._shard = Shard(**shard_kwargs)
+        self._pipe = None
+
+        super(ShardServer, self).__init__(host, port, buffer_size, loop)
+
+    @Server.endpoint('write')
+    async def write(self, key, hash_, record):
+        return self._shard.write(key, hash_, record)
+
+    @Server.endpoint('read')
+    async def read(self, key):
+        return self._shard.read(key)
+
+    @Server.endpoint('pop')
+    async def pop(self, key):
+        return self._shard.pop(key)
+
+    @Server.endpoint('remove')
+    async def remove(self, key):
+        return self._shard.remove(key)
+
+    @Server.endpoint('open_pipe')
+    async def open_pipe(self, *args, **kwargs):
+        if self._pipe:
+            raise Exception(f'Pipe={self._pipe} already open.')
+
+        self._pipe = self._shard.pipe(*args, **kwargs)
+
+    @Server.endpoint('close_pipe')
+    async def close_pipe(self):
+        if not self._pipe:
+            raise Exception('No working pipe.')
+
+        self._pipe.close()
+        self._pipe = None
+
+    @Server.endpoint('reloc')
+    async def reloc(self, key, addr: list):
+        if not self._pipe:
+            raise Exception('No working pipe.')
+        if self._pipe.addr != tuple(addr):
+            raise Exception(f'Wrong pipe. Exists: {self._pipe.addr}, got: {addr}')
+
+        return self._shard.reloc(key, self._pipe)
+
+    @Server.endpoint('get_stat')
+    async def get_stat(self):
+        return self._shard.get_stat()
+
+    @Server.endpoint('lock_shard', with_lock=False, permission_group='master')
+    async def lock_shard(self):
+        if self._locked:
+            raise Exception('Already locked')
+
+        self._locked = True
+
+    @Server.endpoint('release_shard', with_lock=False, permission_group='master')
+    async def release_shard(self):
+        if not self._locked:
+            raise Exception('Shard is not locked')
+
+        self._locked = False

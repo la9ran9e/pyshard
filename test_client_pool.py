@@ -1,21 +1,21 @@
-import logging
-import threading
-import time
+import socket
 
-def thread_function(name):
-    logging.info("Thread %s: starting", name)
-    time.sleep(2)
-    logging.info("Thread %s: finishing", name)
 
-if __name__ == "__main__":
-    format = "%(asctime)s: %(message)s"
-    logging.basicConfig(format=format, level=logging.INFO,
-                        datefmt="%H:%M:%S")
+class Server:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+ 
+    def handle_client(self, client):
+        # Server will just close the connection after it opens it
+        client.close()
+        return
 
-    logging.info("Main    : before creating thread")
-    x = threading.Thread(target=thread_function, args=(1,))
-    logging.info("Main    : before running thread")
-    x.start()
-    logging.info("Main    : wait for the thread to finish")
-    # x.join()
-    logging.info("Main    : all done")
+    def start_listening(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind((self.host, self.port))
+        sock.listen(5)
+
+        client, addr = sock.accept()
+        client_handler = threading.Thread(target=self.handle_client, args=(client,))
+        client_handler.start()

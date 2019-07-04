@@ -35,4 +35,15 @@ Storage features
 
 properties:
 1. limited by memory or quantity
+
+
+Usage examples:
+
+1. cat index.txt | some_script | pyshard index_name load
+
+This have to load all data to shards network with keys from index.txt.
+
+2. pyshard index_name cat index.txt | grep "pattern"
+
+This have to stream data by keys from index.txt from shards network to stdout.
 '''

@@ -34,7 +34,7 @@ def _make_bins(num):
 import abc
 from typing import Union, List, Tuple
 
-from shard.client import ShardClientABC, ShardClient
+from shard.client import ShardClient
 
 
 Key = Union[int, float, str]
@@ -82,17 +82,15 @@ class Shards:
 
 
 class MasterABC(abc.ABC):
-    def __init__(self, shards: Shards, hash_method: str='md5'):
-        self._shards = shards
-        self._hash_method = hash_method
-
-        super(MasterABC, self).__init__()
-
     @abc.abstractmethod
-    def get_shard(self, key: Key) -> Tuple[Hash, ShardClientABC]: ...
+    def get_shard(self, key: Key) -> Tuple[Hash, ShardClient]: ...
 
 
 class Master(MasterABC):
+    def __init__(self, shards: Shards, hash_method: str='md5'):
+        self._shards = shards
+        self._hash_method = hash_method
+    
     def get_shard(self, key):
         bin_, hash_ = self._get_bin(key)
         shard = self._shards[bin_]
