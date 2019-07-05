@@ -4,9 +4,30 @@ import logging
 import socket
 import asyncio
 
+from .typing import Codec
+
 logger = logging.getLogger(__name__)
 Kb = 1024
-Codec = str
+
+
+def mksock(host, port, backlog=5, mode='l') -> socket.socket:
+    """
+    Returns non-blocking socket
+
+    :param host:
+    :param port:
+    :param backlog:
+    :param mode:
+    :return:
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setblocking(False)
+    if mode == 'l':
+        sock.bind((host, port))
+        sock.listen(backlog)
+
+    return sock
 
 
 class ProtocolABC(abc.ABC):

@@ -1,13 +1,16 @@
-from typing import Union, List, Any
+from core.typing import (Addr, Key, Hash, Doc, Offset)
+from core.client import ClientABC, ClientBase
 
-from core.client import ClientBase
 
+def mkpipe(addr: Addr, **kwargs) -> ClientABC:
+    """
+    Create instance of Client to connect to another shard
 
-Key = Union[int, float, str]
-Doc = Union[int, float, str, dict, list, tuple]
-Hash = float
-
-Offset = int
+    :param addr: host and port to connect
+    :param kwargs: params for Client instance
+    :return: Client instance
+    """
+    return ShardClient(*addr, **kwargs)
 
 
 class ShardClient(ClientBase):

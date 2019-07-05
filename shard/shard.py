@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from .client import ShardClient
 
+
 Addr = Tuple[str, int]
 
 
@@ -117,9 +118,6 @@ class Shard:
         self.distr[bin_] -= 1
 
         return item_size
-
-    def pipe(self, addr: Addr, **kwargs) -> None:
-        return ShardClient(*addr, **kwargs)
 
     def reloc(self, key, pipe: ShardClient):
         # relocates item from remote shard

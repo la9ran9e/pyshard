@@ -52,7 +52,7 @@ class TestPyshard(unittest.TestCase):
         self.assertEqual(self.pyshard.pop('test'), OK,
                          'could not pop document')
 
-    def test_pop(self):
+    def test_remove(self):
         self.assertEqual(self.pyshard.remove('test'), OK,
                          'could not remove document')
 

@@ -1,20 +1,16 @@
-# import json
-
-# from .protocol import Protocol
-# from .shard import Shard
-
-
-import socket
-import struct
+from struct import error as struct_error
 import json
 import asyncio
 from collections import defaultdict
-from typing import Tuple, Any
 
 import logging
 
-from core.connect import AsyncProtocol
+from core.typing import Request, Response, rRequest, rResponse
+
+from core.connect import AsyncProtocol, mksock
 from .shard import Shard
+from .client import mkpipe
+from utils import to_bytes, from_bytes
 
 from settings import settings
 
@@ -22,15 +18,6 @@ from settings import settings
 logger = logging.getLogger(__name__)
 
 Kb = 1024
-Codec = str
-
-
-def _to_bytes(str_obj: str, codec: Codec) -> bytes:
-    return bytes(str_obj, encoding=codec)
-
-
-def _from_bytes(bytes_obj: bytes, codec: Codec) -> str:
-    return bytes_obj.decode(codec)
 
 
 class _Channel(AsyncProtocol):
@@ -49,7 +36,7 @@ class _Channel(AsyncProtocol):
 
     async def retrieve_token(self):
         rdata = await self.do_recv(self.sock)
-        self.token = _from_bytes(rdata, self._codec)
+        self.token = from_bytes(rdata, self._codec)
 
     @property
     def sock(self):
@@ -77,8 +64,10 @@ class Server(AsyncProtocol):
     __routes__ = dict()
     __permissions__ = defaultdict(set)
 
-    def __init__(self, host, port, buffer_size, loop, op_buffer_size=1000):
-        self.sock = self._make_sock(host, port)
+    def __init__(self, host, port, buffer_size, loop,
+                 serialize=json.dumps, deserialize=json.loads,
+                 backlog=5):
+        self.sock = mksock(host, port, backlog=backlog, mode='l')
         self._default_queue = asyncio.Queue(maxsize=buffer_size)
         self._master_queue = asyncio.Queue(maxsize=buffer_size//2)
         self._master_group = 'master'
@@ -89,17 +78,10 @@ class Server(AsyncProtocol):
         self._shard_locked = False
         self._proc_locker = asyncio.Lock()
 
+        self._serialize = serialize
+        self._deserialize = deserialize
+
         super(Server, self).__init__(buffer_size, loop)
-
-    @staticmethod
-    def _make_sock(host, port):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setblocking(False)
-        sock.bind((host, port))
-        sock.listen(10)
-
-        return sock
 
     def _dispatch(self, endpoint):
         return self.__routes__[endpoint]
@@ -129,7 +111,7 @@ class Server(AsyncProtocol):
 
     async def _dispatch_and_execute(self, chan, endpoint, *args, **kwargs):
         self._check_permission(chan, endpoint)
-        with self._proc_locker:
+        async with self._proc_locker:
             return await self._dispatch(endpoint)(self, *args, **kwargs)
     
     async def _do_run(self):
@@ -141,13 +123,13 @@ class Server(AsyncProtocol):
         while True:
             chan, endpoint, args, kwargs = await queue.get()
             try:
-                rresp = self._dispatch_and_execute(chan, endpoint, *args, **kwargs)
+                rresp = await self._dispatch_and_execute(chan, endpoint, *args, **kwargs)
             except Exception as err:
                 resp = self._handle_error_resp(err)
             else:
                 resp = self._handle_success_resp(rresp)
 
-            await self.do_send(_to_bytes(resp, self._codec), chan.sock)
+            await self.do_send(to_bytes(resp, self._codec), chan.sock)
 
             queue.task_done()
 
@@ -193,7 +175,7 @@ class Server(AsyncProtocol):
         while True:
             try:
                 data = await self.do_recv(channel.sock)
-            except struct.error as err:
+            except struct_error as err:
                 logger.error(f'Couldn\'t unpack message: {err}')
             except RuntimeError as err:
                 logger.warning(f'Addr={channel.addr}: {err}')
@@ -203,22 +185,22 @@ class Server(AsyncProtocol):
                 break
             else:
                 logger.debug(f'Received message from addr={channel.addr}: {data}')
-                yield _from_bytes(data, self._codec)
+                yield from_bytes(data, self._codec)
 
-    def _parse_request(self, request: str) -> Tuple[str, list, dict]:
-        req = json.loads(request)
+    def _parse_request(self, request: rRequest) -> Request:
+        req = self._deserialize(request)
 
         return req['endpoint'], req.get('args', list()), req.get('kwargs', dict())
 
-    def _handle_success_resp(self, rresp: Any) -> str:
+    def _handle_success_resp(self, rresp: rResponse) -> Response:
         resp = {"type": "success", "message": rresp}
 
-        return json.dumps(resp)
+        return self._serialize(resp)
 
     def _handle_error_resp(self, err: Exception) -> str:
         resp = {"type": "error", "message": err.args}
 
-        return json.dumps(resp)
+        return self._serialize(resp)
 
 
 class ShardServer(Server):
@@ -249,7 +231,7 @@ class ShardServer(Server):
         if self._pipe:
             raise Exception(f'Pipe={self._pipe} already open.')
 
-        self._pipe = self._shard.pipe(*args, **kwargs)
+        self._pipe = mkpipe(*args, **kwargs)
 
     @Server.endpoint('close_pipe')
     async def close_pipe(self):
@@ -274,14 +256,14 @@ class ShardServer(Server):
 
     @Server.endpoint('lock_shard', with_lock=False, permission_group='master')
     async def lock_shard(self):
-        if self._locked:
+        if self._shard_locked:
             raise Exception('Already locked')
 
-        self._locked = True
+        self._shard_locked = True
 
     @Server.endpoint('release_shard', with_lock=False, permission_group='master')
     async def release_shard(self):
-        if not self._locked:
+        if not self._shard_locked:
             raise Exception('Shard is not locked')
 
-        self._locked = False
+        self._shard_locked = False
