@@ -46,6 +46,22 @@ class _Channel(AsyncProtocol):
     def addr(self):
         return self._chan[1]
 
+    async def msg_iterator(self):
+        while True:
+            try:
+                data = await self.do_recv(self.sock)
+            except struct_error as err:
+                logger.error(f'Couldn\'t unpack message: {err}')
+            except RuntimeError as err:
+                logger.warning(f'Addr={self.addr}: {err}')
+                break
+            except AssertionError as err:
+                logger.warning(f'Addr={self.addr} send not enought data. {err}')
+                break
+            else:
+                logger.debug(f'Received message from addr={self.addr}: {data}')
+                yield from_bytes(data, self._codec)
+
 
 def _auth(func):
     async def wrapper(self, *args, **kwargs):
@@ -62,6 +78,7 @@ def _auth(func):
 
 class Server(AsyncProtocol):
     __routes__ = dict()
+    __roles__ = set()
     __permissions__ = defaultdict(set)
 
     def __init__(self, host, port, buffer_size, loop,
@@ -72,6 +89,7 @@ class Server(AsyncProtocol):
         self._master_queue = asyncio.Queue(maxsize=buffer_size//2)
         self._master_group = 'master'
         self._token_storage = defaultdict(dict)
+        self._channels = dict()
 
         # self._token_storage['master']['group'] = self._master_group
 
@@ -89,8 +107,8 @@ class Server(AsyncProtocol):
     @classmethod
     def endpoint(cls, path, with_lock=True, permission_group=None):
         def wrapper(method):
-            cls.__routes__[path] = method
             if permission_group:
+                cls.__roles__.add(permission_group)
                 cls.__permissions__[path].add(permission_group)
             
             async def method_with_lock(self, *args, **kwargs):
@@ -99,7 +117,8 @@ class Server(AsyncProtocol):
 
                 return await method(self, *args, **kwargs)
 
-            return method_with_lock if with_lock else method
+            cls.__routes__[path] = method_with_lock if with_lock else method
+
         return wrapper
 
     def _check_permission(self, chan, endpoint):
@@ -141,7 +160,7 @@ class Server(AsyncProtocol):
         self.sock.close()
 
     async def _handle_channel(self, chan):
-        async for msg in self._msg_iterator(chan):
+        async for msg in chan.msg_iterator():
             try:
                 endpoint, args, kwargs = self._parse_request(msg)
             except Exception as err:
@@ -156,6 +175,7 @@ class Server(AsyncProtocol):
             await queue.put((chan, endpoint, args, kwargs))
 
         chan.sock.close()
+        del self._channels[chan.addr]
 
     async def _channel_iterator(self):
         while True:
@@ -169,23 +189,9 @@ class Server(AsyncProtocol):
 
     @_auth
     async def _accept(self, sock, loop):
-        return await _Channel(sock, loop).connect()
-
-    async def _msg_iterator(self, channel):
-        while True:
-            try:
-                data = await self.do_recv(channel.sock)
-            except struct_error as err:
-                logger.error(f'Couldn\'t unpack message: {err}')
-            except RuntimeError as err:
-                logger.warning(f'Addr={channel.addr}: {err}')
-                break
-            except AssertionError as err:
-                logger.warning(f'Addr={channel.addr} send not enought data. {err}')
-                break
-            else:
-                logger.debug(f'Received message from addr={channel.addr}: {data}')
-                yield from_bytes(data, self._codec)
+        chan = await _Channel(sock, loop).connect()
+        self._channels[chan.addr] = chan
+        return chan
 
     def _parse_request(self, request: rRequest) -> Request:
         req = self._deserialize(request)
@@ -267,3 +273,17 @@ class ShardServer(Server):
             raise Exception('Shard is not locked')
 
         self._shard_locked = False
+
+    @Server.endpoint('change_role')
+    async def change_role(self, addr, role, token=None):
+        addr = tuple(addr)
+        if settings.AUTH and not token:
+            raise Exception('Token is required')
+        if role not in self.__roles__:
+            raise Exception(f'Role {role!r} does not exists')
+        try:
+            chan = self._channels[addr]
+        except KeyError:
+            raise Exception(f'No such address={addr}')
+
+        chan.permission_group = role

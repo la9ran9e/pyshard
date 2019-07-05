@@ -181,5 +181,8 @@ class TCPConnection(ConnectionBase):
     def connect(self):
         self._sock.connect(self._addr)
 
+    def getsockname(self):
+        return self._sock.getsockname()
+
     def close(self):
         self._sock.close()

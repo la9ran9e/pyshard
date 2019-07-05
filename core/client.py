@@ -63,5 +63,8 @@ class ClientBase(ClientABC):
 
         return response['message']
 
+    def getsockname(self):
+        return self._conn.getsockname()
+
     def close(self) -> None:
         self._conn.close()

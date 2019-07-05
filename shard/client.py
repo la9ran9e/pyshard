@@ -55,6 +55,21 @@ class ShardClient(ClientBase):
 
         return self._handle_response(response)
 
+    def lock_shard(self):
+        response = self._deserialize(self._execute("lock_shard"))
+
+        return self._handle_response(response)
+
+    def release_shard(self):
+        response = self._deserialize(self._execute("release_shard"))
+
+        return self._handle_response(response)
+
+    def change_role(self, role, token=None):
+        response = self._deserialize(self._execute("change_role", self.getsockname(), role, token=token))
+
+        return self._handle_response(response)
+
     def _execute(self, method, *args, **kwargs):
         payload = {'endpoint': method,
                    'args': args,

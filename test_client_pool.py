@@ -1,21 +1,22 @@
-import socket
+def dec(a=True):
+    def wrapper(func):
+        def foo():
+            print('meh')
+            return func()
+
+        return foo if a else func
+
+    return wrapper
 
 
-class Server:
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
- 
-    def handle_client(self, client):
-        # Server will just close the connection after it opens it
-        client.close()
-        return
+@dec(a=False)
+def meh():
+    print('meh')
 
-    def start_listening(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((self.host, self.port))
-        sock.listen(5)
+@dec()
+def ehh():
+    print('ehh')
 
-        client, addr = sock.accept()
-        client_handler = threading.Thread(target=self.handle_client, args=(client,))
-        client_handler.start()
+
+meh()
+ehh()
