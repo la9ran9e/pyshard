@@ -290,9 +290,9 @@ class _Shards(dict):
 def _mkshards(shards_conf, *args, **kwargs):
     shards = _Shards()
     for shard in shards_conf:
-        name = shard['name']
+        start = shard['start']
         host, port = shard['host'], shard['port']
-        shards[name] = ShardClient(host, port, *args, **kwargs)
+        shards[start] = ShardClient(host, port, *args, **kwargs)
 
     return shards
 
