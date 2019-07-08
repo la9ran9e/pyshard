@@ -70,6 +70,16 @@ class ShardClient(ClientBase):
 
         return self._handle_response(response)
 
+    def set_start(self, value):
+        response = self._deserialize(self._execute("set_start", value))
+
+        return self._handle_response(response)
+
+    def set_end(self, value):
+        response = self._deserialize(self._execute("set_end", value))
+
+        return self._handle_response(response)
+
     def _execute(self, method, *args, **kwargs):
         payload = {'endpoint': method,
                    'args': args,

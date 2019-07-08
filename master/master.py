@@ -1,7 +1,10 @@
 import hashlib
 import bisect
+import json
+from contextlib import contextmanager
 
-from shard.client import ShardClient as Shard
+from core.connect import AsyncProtocol
+from shard.client import ShardClient
 
 
 def _normalize_number(num, boundary):
@@ -33,8 +36,6 @@ def _make_bins(num):
 
 import abc
 from typing import Union, List, Tuple
-
-from shard.client import ShardClient
 
 
 Key = Union[int, float, str]
@@ -214,3 +215,97 @@ class Master(MasterABC):
 #           }
 
 #       return stat
+
+
+def _bootstrap(conf_path=None, *args, **kwargs):
+    master_token = kwargs.pop('token', None)
+    config = _get_config(conf_path)
+    shards = _mkshards(config['shards'], *args, **kwargs)
+    shards.get_master_role(master_token)
+    with shards.lock():
+        _mark_shards(shards, config['shards'])
+
+    return shards
+
+
+def _get_config(conf_path=None):
+    if conf_path:
+        config_file = open(conf_path, mode='r')
+    else:
+        raise NotImplementedError()
+
+    config = json.load(config_file)
+
+    shards = config['shards']
+
+    # TODO: check names existence and uniqueness
+
+    if _is_marked(shards):
+        _check_markers(shards)
+
+    return config
+
+
+def _is_marked(shards):
+    l = len(shards)
+    shards = [shard for shard in shards if shard.get('start') is not None
+              and shard.get('end') is not None]
+    if len(shards) < l:
+        raise Exception("All or no one shard must be marked")
+    if not shards:
+        return False
+
+    return True
+
+
+def _check_markers(shards):
+    shards.sort(key=lambda x: x['start'])
+    mem_end = 0.0
+    for shard in shards:
+        start = shard['start']
+        end = shard['end']
+        if end <= start:
+            raise Exception("Shard end must be greater than it\'s start")
+        if mem_end != start:
+            raise Exception("Shard start must equal to previous shard end or 0.0")
+        mem_end = end
+
+
+class _Shards(dict):
+    def get_master_role(self, token=None):
+        for shard in self.values():
+            shard.change_role('master', token)
+
+    @contextmanager
+    def lock(self):
+        for shard in self.values():
+            shard.lock_shard()
+        try:
+            yield
+        finally:
+            for shard in self.values():
+                shard.release_shard()
+
+
+def _mkshards(shards_conf, *args, **kwargs):
+    shards = _Shards()
+    for shard in shards_conf:
+        name = shard['name']
+        host, port = shard['host'], shard['port']
+        shards[name] = ShardClient(host, port, *args, **kwargs)
+
+    return shards
+
+
+def _mark_shards(shards, shards_conf):
+    for shard, shard_conf in zip(shards.values(), shards_conf):  # TODO: remove values method
+        start, end = shard_conf['start'], shard_conf['end']
+        shard.set_start(start)
+        shard.set_end(end)
+
+
+class BootstrapServer(AsyncProtocol):
+    def __init__(self, *args, config_path=None, **kwargs):  # TODO: add bootstrap options
+        self._shards = _bootstrap(config_path)
+
+        super(BootstrapServer, self).__init__(*args, **kwargs)

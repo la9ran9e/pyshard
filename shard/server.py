@@ -287,3 +287,11 @@ class ShardServer(Server):
             raise Exception(f'No such address={addr}')
 
         chan.permission_group = role
+
+    @Server.endpoint('set_start', with_lock=False, permission_group='master')
+    async def set_start(self, value):
+        self._shard.start = value
+
+    @Server.endpoint('set_end', with_lock=False, permission_group='master')
+    async def set_start(self, value):
+        self._shard.end = value
