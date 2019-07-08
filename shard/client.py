@@ -80,6 +80,11 @@ class ShardClient(ClientBase):
 
         return self._handle_response(response)
 
+    def update_distr(self):
+        response = self._deserialize(self._execute("update_distr"))
+
+        return self._handle_response(response)
+
     def _execute(self, method, *args, **kwargs):
         payload = {'endpoint': method,
                    'args': args,

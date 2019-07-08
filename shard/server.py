@@ -295,3 +295,7 @@ class ShardServer(Server):
     @Server.endpoint('set_end', with_lock=False, permission_group='master')
     async def set_start(self, value):
         self._shard.end = value
+
+    @Server.endpoint('update_distr', with_lock=False, permission_group='master')
+    async def update_distr(self):
+        self._shard.update_distr()

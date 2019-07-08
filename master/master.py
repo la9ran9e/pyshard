@@ -302,6 +302,7 @@ def _mark_shards(shards, shards_conf):
         start, end = shard_conf['start'], shard_conf['end']
         shard.set_start(start)
         shard.set_end(end)
+        shard.update_distr()
 
 
 class BootstrapServer(AsyncProtocol):

@@ -31,15 +31,38 @@ class Shard:
         self._end = end
         self._bins_num = bins_num
         self._bin_step = self.estimate_bin_step()
-        self.distr = defaultdict(int)
+        self._distr = defaultdict(int)
+
+    @property
+    def distr(self):
+        return self._distr
+
+    def update_distr(self):
+        self._distr = defaultdict(int)
+        for doc in self.storage.values():
+            hash_ = doc['hash_']
+            bin_ = self._get_bin(hash_)
+            self._distr[bin_] += 1
 
     @property
     def start(self):
         return self._start
 
+    @start.setter
+    def start(self, value):
+        assert isinstance(value, float)
+        self._bin_step = self.estimate_bin_step()
+        self._start = value
+
     @property
     def end(self):
         return self._end
+
+    @end.setter
+    def end(self, value):
+        assert isinstance(value, float)
+        self._bin_step = self.estimate_bin_step()
+        self._end = value
 
     def estimate_bin_step(self):
         if self._start is not None and self._end is not None:
@@ -48,14 +71,6 @@ class Shard:
             bin_step = None
 
         return bin_step
-
-    @start.setter
-    def start(self, value):
-        self._start = value
-
-    @end.setter
-    def end(self, value):
-        self._end = value
 
     def _get_bin(self, hash_):
         steps = (hash_ - self._start) // self._bin_step
