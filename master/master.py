@@ -88,7 +88,7 @@ class MasterABC(abc.ABC):
 
 
 class Master(MasterABC):
-    def __init__(self, shards: Shards, hash_method: str='md5'):
+    def __init__(self, shards: dict, hash_method: str='md5'):
         self._shards = shards
         self._hash_method = hash_method
     
@@ -306,7 +306,9 @@ def _mark_shards(shards, shards_conf):
 
 
 class BootstrapServer(AsyncProtocol):
-    def __init__(self, *args, config_path=None, **kwargs):  # TODO: add bootstrap options
+    def __init__(self, *args, config_path=None, master=Master, hash_method='md5',
+                 **kwargs):  # TODO: add bootstrap options
         self._shards = _bootstrap(config_path)
+        # self._master = master(shards=self._shards, hash_method=hash_method)
 
         super(BootstrapServer, self).__init__(*args, **kwargs)
