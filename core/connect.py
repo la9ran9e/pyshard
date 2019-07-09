@@ -6,7 +6,7 @@ import asyncio
 
 from .typing import Codec
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('shard.core.connect')
 Kb = 1024
 
 

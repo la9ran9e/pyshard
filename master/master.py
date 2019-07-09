@@ -3,7 +3,7 @@ import bisect
 import json
 from contextlib import contextmanager
 
-from core.connect import AsyncProtocol
+from core.server import ServerBase
 from shard.client import ShardClient
 
 
@@ -305,10 +305,21 @@ def _mark_shards(shards, shards_conf):
         shard.update_distr()
 
 
-class BootstrapServer(AsyncProtocol):
+class _Server(ServerBase): ...
+
+
+class BootstrapServer(_Server):
     def __init__(self, *args, config_path=None, master=Master, hash_method='md5',
                  **kwargs):  # TODO: add bootstrap options
         self._shards = _bootstrap(config_path)
-        # self._master = master(shards=self._shards, hash_method=hash_method)
+        self._master = master(shards=self._shards, hash_method=hash_method)
 
         super(BootstrapServer, self).__init__(*args, **kwargs)
+
+    @_Server.endpoint('get_map')
+    async def get_map(self):
+        return {bin_: shard.addr for bin_, shard in self._shards.items()}
+
+    @_Server.endpoint('get_shard')
+    async def get_shard(self, key):
+        return self._master.get_shard(key)
