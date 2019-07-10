@@ -54,7 +54,12 @@ class ClientBase(ClientABC):
         return self._serialyzer.load(response)
 
     def _execute(self, method, *args, **kwargs):
-        raise NotImplementedError()
+        payload = {'endpoint': method,
+                   'args': args,
+                   'kwargs': kwargs}
+
+        self._conn.send(self._serialize(payload))
+        return self._conn.recv()
 
     def _handle_response(self, response):
         if response['type'] == 'error':

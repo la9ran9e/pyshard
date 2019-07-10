@@ -272,6 +272,14 @@ def _check_markers(shards):
 
 
 class _Shards(dict):
+    def __init__(self, *args, **kwargs):
+        super(_Shards, self).__init__(*args, **kwargs)
+        self._bins = sorted(self.keys())
+
+    @property
+    def bins(self):
+        return self._bins
+
     def get_master_role(self, token=None):
         for shard in self.values():
             shard.change_role('master', token)
@@ -285,6 +293,10 @@ class _Shards(dict):
         finally:
             for shard in self.values():
                 shard.release_shard()
+
+    def __setitem__(self, key, value):
+        super(_Shards, self).__setitem__(key, value)
+        bisect.insort_right(self._bins, key)
 
 
 def _mkshards(shards_conf, *args, **kwargs):
@@ -322,4 +334,5 @@ class BootstrapServer(_Server):
 
     @_Server.endpoint('get_shard')
     async def get_shard(self, key):
-        return self._master.get_shard(key)
+        hash_, shard = self._master.get_shard(key)
+        return hash_, shard.addr
