@@ -1,8 +1,9 @@
 import asyncio
 import logging
-import sys
 
 from master.master import BootstrapServer
+
+from settings import settings
 
 # create logger
 logger = logging.getLogger('shard')
@@ -25,7 +26,7 @@ loop = asyncio.get_event_loop()
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    server = BootstrapServer(host='127.0.0.1', port=int(sys.argv[1]), config_path='config_example.json',
+    server = BootstrapServer(*settings.BOOTSTRAP_SERVER, config_path='config_example.json',
                              buffer_size=1024, loop=loop)
     try:
         loop.run_until_complete(server._do_run())

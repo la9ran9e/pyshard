@@ -1,20 +1,7 @@
-import sys
-from typing import Tuple
 from collections import defaultdict
 
+from utils import get_size
 from .client import ShardClient
-
-
-Addr = Tuple[str, int]
-
-
-def _get_size(obj):
-    if isinstance(obj, dict):
-        size = sum((_get_size(v) for v in obj.values()))
-    else:
-        size = sys.getsizeof(obj)
-
-    return size
 
 
 class Shard:
@@ -87,7 +74,7 @@ class Shard:
         return self.max_size - self.size
 
     def write(self, key, hash_, record):
-        item_size = _get_size(record)
+        item_size = get_size(record)
         if self.size + item_size > self.max_size:
             raise MemoryError(f'Wow! Such data! So big!')
 
@@ -113,7 +100,7 @@ class Shard:
         if doc is None:
             return
 
-        item_size = _get_size(doc['record'])
+        item_size = get_size(doc['record'])
         self.size -= item_size
 
         bin_ = self._get_bin(doc['hash_'])
@@ -126,7 +113,7 @@ class Shard:
         if doc is None:
             return 0
 
-        item_size = _get_size(doc['record'])
+        item_size = get_size(doc['record'])
         self.size -= item_size
 
         bin_ = self._get_bin(doc['hash_'])

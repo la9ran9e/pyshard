@@ -1,6 +1,7 @@
-import sys
 import pdb
 from pyshard.app import Pyshard
 
-app = Pyshard(bootstrap_server=('127.0.0.1', int(sys.argv[1])))
+from settings import settings
+
+app = Pyshard(bootstrap_server=settings.BOOTSTRAP_SERVER)
 pdb.set_trace()

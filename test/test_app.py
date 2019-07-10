@@ -1,77 +1,64 @@
 import unittest
 
 from pyshard.app import Pyshard
-from master.master import Shards
-from shard.client import ShardClient
-
-OK = 1
+from utils import get_size
+from settings import settings
 
 
-def mock_shard_client(v):
-    variants = [
-        f'{{"type": "", "response": {OK}}}',
-        '{"type": "error", "response": "test error"}'
+class TestCommands(unittest.TestCase):
+    TYPE_CASES = [
+        ('test0', 1),
+        ('test1', 1.1),
+        ('test2', 'test'),
+        ('test3', {'test': 'test'}),
+        # ('test4', ['test0', 'test1'])
     ]
-    def _monkey_execute(self, method, *args, **kwargs):
-            return variants[v]
 
-    MonkeyShardClient = type('MonkeyShardClient', ShardClient.__bases__, 
-                             dict(ShardClient.__dict__))
-    MonkeyShardClient._execute = _monkey_execute
+    @classmethod
+    def setUpClass(cls):
+        cls.app = Pyshard(bootstrap_server=settings.BOOTSTRAP_SERVER)
 
-    return MonkeyShardClient
+    def test_types(self):
+        for key, doc in self.TYPE_CASES:
+            self.assertEqual(self.app.write(key, doc), get_size(doc),
+                             f'couldn\t write key={key}, doc={doc}')
+            self.assertEqual(self.app.remove(key), get_size(doc),
+                             f'couldn\t remove key={key}, doc={doc}')
 
+    def test_write_and_read(self):
+        key = 'test_key'
+        doc = 'test_record'
+        self.assertEqual(self.app.write(key, doc), get_size(doc),
+                         f'couldn\t write key={key}, doc={doc}')
+        self.assertEqual(self.app.read(key)['record'], doc,
+                         f'couldn\t read key={key}, doc={doc}')
 
-class TestPyshard(unittest.TestCase):
-    _shard_client_class = mock_shard_client(0)
+        self.assertEqual(self.app.remove(key), get_size(doc),
+                         f'couldn\t remove key={key}, doc={doc}')
 
-    def setUp(self):
-        test_addrs = [('127.0.0.1', 5050)]
-        shards = Shards(*test_addrs, shard_client_class=self._shard_client_class)
-        self.pyshard = Pyshard(shards)
+    def test_read_not_existing(self):
+        key = 'test_key'
+        self.assertEqual(self.app.read(key), None, f'couldn\t read key={key}')
 
-    def test_write(self):
-        doc_cases = [
-            (tuple, 'test-1', ('test',)),
-            (str, 'test0', 'test'),
-            (int, 'test1', 1),
-            (float, 'test2', 1.0),
-            (dict, 'test3', {'test': 'test'}),
-            (list, 'test4', ['test', 'test'])
+    def test_write_duplicate(self):
+        key = 'test_key'
+        doc = 'test_record'
+        self.assertEqual(self.app.write(key, doc), get_size(doc),
+                         f'couldn\t write key={key}, doc={doc}')
+        self.assertEqual(self.app.write(key, doc), 0,
+                         f'couldn\t write key={key}, doc={doc}')
 
-        ]
-        for doc in doc_cases:
-            self.assertEqual(self.pyshard.write(doc[1], doc[2]), OK,       
-                             f'could not write document: {doc}')
+        self.assertEqual(self.app.remove(key), get_size(doc),
+                         f'couldn\t remove key={key}, doc={doc}')
 
-    def test_read(self):
-        self.assertEqual(self.pyshard.read('test'), OK,
-                         'could not read document')
+    def test_write_and_pop(self):
+        key = 'test_key'
+        doc = 'test_record'
+        self.assertEqual(self.app.write(key, doc), get_size(doc),
+                         f'couldn\t write key={key}, doc={doc}')
+        self.assertEqual(self.app.pop(key)['record'], doc,
+                         f'couldn\'t populate key={key}, doc={doc}')
 
-    def test_pop(self):
-        self.assertEqual(self.pyshard.pop('test'), OK,
-                         'could not pop document')
-
-    def test_remove(self):
-        self.assertEqual(self.pyshard.remove('test'), OK,
-                         'could not remove document')
-
-
-class TestBadPyshard(TestPyshard):
-    _shard_client_class = mock_shard_client(1)
-
-    def test_write(self):
-        self.assertEqual(self.pyshard.write('test', 'test doc'), 0,       
-                         f'unexpected response')
-
-    def test_read(self):
-        self.assertEqual(self.pyshard.read('test'), None,       
-                         f'unexpected response')
-
-    def test_pop(self):
-        self.assertEqual(self.pyshard.pop('test'), None,       
-                         f'unexpected response')
-
-    def test_remove(self):
-        self.assertEqual(self.pyshard.remove('test'), 0,       
-                         f'unexpected response')
+    def test_pop_not_existing(self):
+        key = 'test_key'
+        self.assertEqual(self.app.pop(key), None, f'couldn\'t populate key={key}')
