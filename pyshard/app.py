@@ -1,7 +1,7 @@
 import abc
-from typing import Union, List, Tuple
+from typing import Union
 
-from master.master import MasterABC, Master, _Shards
+from master.master import Master, _Shards
 from master.client import MasterClient
 from shard.client import ShardClient
 from core.client import ClientError
@@ -31,7 +31,7 @@ def _map_shards(bootstrap_client, **kwargs):
 
 
 class Pyshard(PyshardABC):
-    def __init__(self, bootstrap_server, buffer_size=1024, master_class: MasterABC=Master,
+    def __init__(self, bootstrap_server, buffer_size=1024, master_class=Master,
                  **master_args):
         self._bootstrap_client = MasterClient(*bootstrap_server, buffer_size=buffer_size)
         shards = _map_shards(self._bootstrap_client)  # TODO: add ShardClient kwargs

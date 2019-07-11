@@ -38,6 +38,7 @@ class TestCommands(unittest.TestCase):
 
     def test_read_not_existing(self):
         key = 'test_key'
+        self.app.remove(key)
         self.assertEqual(self.app.read(key), None, f'couldn\t read key={key}')
 
     def test_write_duplicate(self):
