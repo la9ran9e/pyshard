@@ -1,5 +1,7 @@
 # Pyshard
 
+[![Build Status](https://travis-ci.org/la9ran9e/pyshard.svg?branch=master)](https://travis-ci.org/la9ran9e/pyshard)
+
 Pyshard is a complete distributed key-value data storage 
 written in Python using only standard library tools.
 Pyshard's using hash based sharding method. It means 
