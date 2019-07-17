@@ -1,27 +1,12 @@
 import sys
 import asyncio
-import logging
+import logging.config
 
 from pyshard import BootstrapServer
 
 # create logger
-logger = logging.getLogger('shard')
-logger.setLevel(logging.DEBUG)
-
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# add formatter to ch
-ch.setFormatter(formatter)
-
-# add ch to logger
-logger.addHandler(ch)
-
-loop = asyncio.get_event_loop()
+logging.config.fileConfig('logging.conf')
+logger = logging.getLogger('pyshard')
 
 
 if __name__ == '__main__':
