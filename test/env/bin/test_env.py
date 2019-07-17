@@ -6,7 +6,8 @@ import subprocess
 import shlex
 
 
-INTERPRETER = '/usr/bin/python3.7'
+INTERPRETER = '/usr/bin/python3.6'
+PIDFILE_PATH = './test_env.pid'
 
 
 def main():
@@ -19,8 +20,7 @@ def main():
         bootstrap_pid = run_bootstrap_server(config['bootstrap'])
         save_pids(*shard_pids, bootstrap_pid)
     elif mode == 'kill':
-        pidfile_path = sys.argv[2]
-        with open(pidfile_path, 'r') as pidfile:
+        with open(PIDFILE_PATH, 'r') as pidfile:
             pids = parse_pidfile(pidfile)
         for pid in pids:
             try:
@@ -28,7 +28,7 @@ def main():
             except ProcessLookupError:
                 pass
 
-        os.remove(pidfile_path)
+        os.remove(PIDFILE_PATH)
 
 
 def run_shard_servers(shards_config):
@@ -54,14 +54,14 @@ def _wait_for(delay):
 def _mkserver(module, host, port):
     logfile_name = f"{module}_{host}:{port}.log"
     logfile = open(logfile_name, 'w')
-    cmd = shlex.split(f'{INTERPRETER} {module}.py {host} {port}')
+    cmd = shlex.split(f'{INTERPRETER} test/env/bin/{module}.py {host} {port}')
     proc = subprocess.Popen(cmd, stdout=logfile, stderr=logfile)
 
     return proc
 
 
 def save_pids(*pids):
-    with open('test_env.pid', 'w') as pidfile:
+    with open(PIDFILE_PATH, 'w') as pidfile:
         for pid in pids:
             pidfile.write(f'{pid}\n')
 
