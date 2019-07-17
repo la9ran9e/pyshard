@@ -1,8 +1,8 @@
 import unittest
 
-from pyshard.app import Pyshard
-from utils import get_size
-from settings import settings
+from pyshard import Pyshard
+from pyshard.utils import get_size
+from pyshard.settings import settings
 
 
 class TestCommands(unittest.TestCase):

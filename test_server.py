@@ -1,11 +1,13 @@
 import logging
+import logging.config
 import sys
 import asyncio
 
-from shard.server import ShardServer
+from pyshard import ShardServer
 
 # create logger
-logger = logging.getLogger('shard')
+logging.config.fileConfig('logging.conf')
+logger = logging.getLogger('pyshard')
 logger.setLevel(logging.DEBUG)
 
 # create console handler and set level to debug
@@ -23,6 +25,6 @@ logger.addHandler(ch)
 
 loop = asyncio.get_event_loop()
 
-server = ShardServer(host='127.0.0.1', port=int(sys.argv[1]), start=.0, end=.1)
+server = ShardServer(host=sys.argv[1], port=int(sys.argv[2]), start=.0, end=.1)
 loop.run_until_complete(server._do_run())
 loop.close()
