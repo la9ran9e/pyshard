@@ -5,4 +5,4 @@ python:
 install:
   - pip install .
 script:
-  - python test/env/bin/test_env.py build config_example.json && unittest test/test_app.py
+  - python test/env/bin/test_env.py build config_example.json && unittest test/test_app.py && python test/env/bin/test_env.py kill

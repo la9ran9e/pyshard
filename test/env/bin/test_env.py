@@ -6,7 +6,7 @@ import subprocess
 import shlex
 
 
-INTERPRETER = '/usr/bin/python3.6'
+INTERPRETER = 'python'
 PIDFILE_PATH = './test_env.pid'
 
 
