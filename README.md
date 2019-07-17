@@ -118,3 +118,4 @@ Now shards have got configurations from bootstrap service and ready.
 * Connection id for shard servers (now it is an address)
 * App utils (`pyshard read`, `pyshard write`)
 * Nice run methods for services
+* Makefile
