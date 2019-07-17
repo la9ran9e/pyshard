@@ -8,6 +8,7 @@ import shlex
 
 INTERPRETER = 'python'
 PIDFILE_PATH = './test_env.pid'
+BIN_PATH = './env/bin'
 
 
 def main():
@@ -54,7 +55,7 @@ def _wait_for(delay):
 def _mkserver(module, host, port):
     logfile_name = f"{module}_{host}:{port}.log"
     logfile = open(logfile_name, 'w')
-    cmd = shlex.split(f'{INTERPRETER} test/env/bin/{module}.py {host} {port}')
+    cmd = shlex.split(f'{INTERPRETER} {BIN_PATH}/{module}.py {host} {port}')
     proc = subprocess.Popen(cmd, stdout=logfile, stderr=logfile)
 
     return proc
