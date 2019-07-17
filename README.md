@@ -113,4 +113,8 @@ Now shards have got configurations from bootstrap service and ready.
 {'hash_': 0.8204544, 'record': {'hello': 'world'}}
 ```
 
-
+## TODO
+* Index (data tables equivalent)
+* Connection id for shard servers (now it is an address)
+* App utils (`pyshard read`, `pyshard write`)
+* Nice run methods for services
