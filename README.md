@@ -18,20 +18,20 @@ To run 'hello world' service you need started up shard servers. For example:
 
 import sys
 import asyncio
-from shard.server import ShardServer
+from pyshard import ShardServer
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
 
-    server = ShardServer(host='127.0.0.1', port=int(sys.argv[1]), start=.0, end=1.0)
+    server = ShardServer(host=sys.argv[1], port=int(sys.argv[2]), start=.0, end=1.0)
     try:
         loop.run_until_complete(server._do_run())
     finally:
         loop.close()
 ```
 ```bash
-python test_server.py 5050 & \
-python test_server.py 5051
+python test_server.py localhost 5050 & \
+python test_server.py localhost 5051
 ```
 
 After servers started up you should start bootstrap server to map shards. 
@@ -71,9 +71,9 @@ Every shard has next parameters:
 
 import asyncio
 
-from master.master import BootstrapServer
+from pyshard import BootstrapServer
 
-from settings import settings
+from pyshard.settings import settings
 
 
 if __name__ == '__main__':
@@ -97,8 +97,8 @@ Now shards have got configurations from bootstrap service and ready.
 
 
 ```python
->>> from pyshard.app import Pyshard
->>> from settings import settings
+>>> from pyshard import Pyshard
+>>> from pyshard.settings import settings
 >>> 
 >>> app = Pyshard(bootstrap_server=settings.BOOTSTRAP_SERVER)
 >>> app.write(key='test', doc='hello world')
