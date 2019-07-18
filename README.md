@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/la9ran9e/pyshard.svg?branch=master)](https://travis-ci.org/la9ran9e/pyshard)
 [![Code Coverage Status](https://codecov.io/gh/la9ran9e/pyshard/branch/master/graph/badge.svg)](https://codecov.io/gh/la9ran9e/pyshard)
-[![PyPI version](https://badge.fury.io/py/pyshard.svg)](https://badge.fury.io/py/pyshard)
+![PyPI](https://img.shields.io/pypi/v/pyshard.svg)
 
 Pyshard is a complete distributed key-value data storage 
 written in Python using only standard library tools.
