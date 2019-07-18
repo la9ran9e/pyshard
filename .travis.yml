@@ -2,6 +2,9 @@ language: python
 python:
   - "3.6"
 #  - "3.7"
+CODECOV_TOKEN:
+  secure: UF0Be9fcaw2jQKqnHTJbXad1UxWx4rKMym1+gNNIkWzS2GurxuH7/fzpefQwpAlA+0lBM0rh+bR2+AGwjBkGu8EuY+hvin7eCVo+DqWPkskasQK1dr5JaaIO4xiLtnS/PMEPnQp3ltSSXgpbDYi0L3tH6EDlK81M/7X6BSSLsZAkujYSpAAtvpnzboYJprK0EuVTkb2w2MpVIEOn8J7UWD2zGlFtFDqN9naIs8vsna45pB1FF/RzF3jj2WlIWtXXXZ2zZKjoQ5DK8LY8d9LGKQiJ6sGSF6ngh5OE3w1ccELgYZcZ1FfQVQfy27Y+KlXWOelFwJXalLsDpW3OQumfzrGYTQaDOw1+7JhOsIzouQwVJB3m6ZVmvMbUw7Fb0+wCKMyYry7lRaUMaTkZhrmz1iNr4yALJkk7NDRN0UzNs7KneYMLNZ86gspqCpkuUGesU6VhcNVv+6JTBD5hqzBpdXaKheU37xHDAcEz12CA+aJA2bqkvK1DH9ztDI2vWmeiOkTFrUpDccYcwbS7EmeCxCKOncPvzz+iSuDdS+nww27q/q7O8sTO/RnvHC3wORD2SX+i8t+VFXWCHW53yhs1Bi81qnSzaqfs3MvZ8BOs8Jm2qmbZ2iHbQpk13L7eZ13rDkQkGVrxCv+Vqj48nRI5SeMXfwRwUVhGJHOEGBAPLnQ=
+
 install:
   - pip install .
 script:
