@@ -1,5 +1,4 @@
 import json
-import asyncio
 
 import logging
 
@@ -7,7 +6,6 @@ from ..settings import settings
 from ..core.server import ServerBase
 from .shard import Shard
 from .client import mkpipe
-
 
 
 logger = logging.getLogger(__name__)
@@ -41,23 +39,23 @@ class ShardServer(_Server):
 
     @_Server.endpoint('write')
     @_Server.with_shard_lock
-    async def write(self, key, hash_, record):
-        return self._shard.write(key, hash_, record)
+    async def write(self, index, key, hash_, record):
+        return self._shard.write(index, key, hash_, record)
 
     @_Server.endpoint('read')
     @_Server.with_shard_lock
-    async def read(self, key):
-        return self._shard.read(key)
+    async def read(self, index, key):
+        return self._shard.read(index, key)
 
     @_Server.endpoint('pop')
     @_Server.with_shard_lock
-    async def pop(self, key):
-        return self._shard.pop(key)
+    async def pop(self, index, key):
+        return self._shard.pop(index, key)
 
     @_Server.endpoint('remove')
     @_Server.with_shard_lock
-    async def remove(self, key):
-        return self._shard.remove(key)
+    async def remove(self, index, key):
+        return self._shard.remove(index, key)
 
     @_Server.endpoint('open_pipe')
     @_Server.with_shard_lock
@@ -78,13 +76,13 @@ class ShardServer(_Server):
 
     @_Server.endpoint('reloc')
     @_Server.with_shard_lock
-    async def reloc(self, key, addr: list):
+    async def reloc(self, index, key, addr: list):
         if not self._pipe:
             raise Exception('No working pipe.')
         if self._pipe.addr != tuple(addr):
             raise Exception(f'Wrong pipe. Exists: {self._pipe.addr}, got: {addr}')
 
-        return self._shard.reloc(key, self._pipe)
+        return self._shard.reloc(index, key, self._pipe)
 
     @_Server.endpoint('get_stat')
     @_Server.with_shard_lock
@@ -131,3 +129,7 @@ class ShardServer(_Server):
     @_Server.endpoint('update_distr', permission_group='master')
     async def update_distr(self):
         self._shard.update_distr()
+
+    @_Server.endpoint('create_index')
+    async def create_index(self, index):
+        self._shard.create_index(index)

@@ -84,7 +84,9 @@ class Shards:
 
 class MasterABC(abc.ABC):
     @abc.abstractmethod
-    def get_shard(self, key: Key) -> Tuple[Hash, ShardClient]: ...
+    def get_shard(self, index, key: Key) -> Tuple[Hash, ShardClient]: ...
+    @abc.abstractmethod
+    def create_index(self, index): ...
 
 
 class Master(MasterABC):
@@ -92,11 +94,19 @@ class Master(MasterABC):
         self._shards = shards
         self._hash_method = hash_method
     
-    def get_shard(self, key):
-        bin_, hash_ = self._get_bin(key)
+    def get_shard(self, index, key):
+        key_comp = self._join_key(index, key)
+        bin_, hash_ = self._get_bin(key_comp)
         shard = self._shards[bin_]
 
         return hash_, shard
+
+    def _join_key(self, *parts):
+        chain = []
+        for part in parts:
+            chain.append(str(part))  # TODO: make parts only string
+
+        return ':'.join(chain)
 
     def _get_bin(self, key: Key) -> Tuple[Bin, Hash]:
         bins = self._shards.bins
@@ -105,6 +115,11 @@ class Master(MasterABC):
         bin_ = bins[index]
 
         return bin_, hash_
+
+    def create_index(self, index):
+        # TODO: update meta for additional shards
+        for shard in self._shards.values():  # TODO: remove values method
+            shard.create_index(index)
 
 # class Master:
 #   _shard = Shard
@@ -333,6 +348,10 @@ class BootstrapServer(_Server):
         return {bin_: shard.addr for bin_, shard in self._shards.items()}
 
     @_Server.endpoint('get_shard')
-    async def get_shard(self, key):
-        hash_, shard = self._master.get_shard(key)
+    async def get_shard(self, index, key):
+        hash_, shard = self._master.get_shard(index, key)
         return hash_, shard.addr
+
+    @_Server.endpoint('create_index')
+    async def create_index(self, index):
+        return self._master.create_index(index)
