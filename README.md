@@ -12,6 +12,11 @@ key hash (regards to [lgiordani/pyshard](https://github.com/lgiordani/pyshard)).
 This project is experimental and should be used in another 
 project [pdx](https://github.com/la9ran9e/pdx) - distributed web indexing service.
 
+## Installation
+
+```bash
+pip install pyshard
+```
 
 ## Quick start
 ### Bootstrap
