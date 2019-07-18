@@ -82,7 +82,6 @@ class Shard:
         doc = {'hash_': hash_, 'record': record}
 
         offset = self.storage.write(index, key, doc)
-        print(offset)
         if offset == 0:  # TODO replace memory control to storage
             return 0
 
