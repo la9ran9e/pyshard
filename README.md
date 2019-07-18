@@ -110,15 +110,16 @@ Now shards have got configurations from bootstrap service and ready.
 >>> from pyshard.settings import settings
 >>> 
 >>> app = Pyshard(bootstrap_server=settings.BOOTSTRAP_SERVER)
->>> app.write(key='test', doc='hello world')
+>>> app.create_index('test_index')
+>>> app.write(index='test_index', key='test', doc='hello world')
 60
->>> app.read('test')
+>>> app.read(index='test_index', key='test')
 {'hash_': 0.1671936, 'record': 'hello world'}
->>> app.write('test1', {'hello': 'world'})
+>>> app.write('test_index', 'test1', {'hello': 'world'})
 54
->>> app.read('test1')
+>>> app.read('test_index', 'test')
 {'hash_': 0.8204544, 'record': {'hello': 'world'}}
->>> app.pop('test1')
+>>> app.pop('test_index', 'test1')
 {'hash_': 0.8204544, 'record': {'hello': 'world'}}
 ```
 

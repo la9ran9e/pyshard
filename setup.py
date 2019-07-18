@@ -19,6 +19,7 @@ setup(
         'pyshard.master',
         'pyshard.shard',
         'pyshard.settings',
-        'pyshard.utils'
+        'pyshard.utils',
+        'pyshard.storage'
     ]
 )

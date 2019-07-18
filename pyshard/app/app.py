@@ -12,13 +12,15 @@ Doc = Union[int, float, str, dict, list, tuple]
 
 class PyshardABC(abc.ABC):
     @abc.abstractmethod
-    def write(self, key: Key, doc: Doc) -> int: ...
+    def write(self, index, key: Key, doc: Doc) -> int: ...
     @abc.abstractmethod
-    def read(self, key: Key) -> Doc: ...
+    def read(self, index, key: Key) -> Doc: ...
     @abc.abstractmethod
-    def pop(self, key: Key) -> Doc: ...
+    def pop(self, index, key: Key) -> Doc: ...
     @abc.abstractmethod
-    def remove(self, key: Key) -> int: ...
+    def remove(self, index, key: Key) -> int: ...
+    @abc.abstractmethod
+    def create_index(self, index): ...
 
 
 def _map_shards(bootstrap_client, **kwargs):
@@ -37,42 +39,45 @@ class Pyshard(PyshardABC):
         shards = _map_shards(self._bootstrap_client)  # TODO: add ShardClient kwargs
         self._master = master_class(shards=shards, **master_args)
 
-    def write(self, key, doc):
-        hash_, shard = self._master.get_shard(key)
+    def write(self, index, key, doc):
+        hash_, shard = self._master.get_shard(index, key)
         try:
-            offset = shard.write(key, hash_, doc)
+            offset = shard.write(index, key, hash_, doc)
         except ClientError as err:
             # log warning: err
             return 0
         else:
             return offset
 
-    def read(self, key):
-        _, shard = self._master.get_shard(key)
+    def read(self, index, key):
+        _, shard = self._master.get_shard(index, key)
         try:
-            doc = shard.read(key)
+            doc = shard.read(index, key)
         except ClientError as err:
             # log warning: err
             return
         else:
             return doc
         
-    def pop(self, key):
-        _, shard = self._master.get_shard(key)
+    def pop(self, index, key):
+        _, shard = self._master.get_shard(index, key)
         try:
-            doc = shard.pop(key)
+            doc = shard.pop(index, key)
         except ClientError as err:
             # log warning: err
             return
         else:
             return doc
 
-    def remove(self, key):
-        _, shard = self._master.get_shard(key)
+    def remove(self, index, key):
+        _, shard = self._master.get_shard(index, key)
         try:
-            offset = shard.remove(key)
+            offset = shard.remove(index, key)
         except ClientError as err:
             # log warning: err
             return 0
         else:
             return offset
+
+    def create_index(self, index):
+        self._master.create_index(index)

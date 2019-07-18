@@ -14,24 +14,24 @@ def mkpipe(addr: Addr, **kwargs) -> ClientABC:
 
 
 class ShardClient(ClientBase):
-    def write(self, key: Key, hash_: Hash, doc: Doc) -> Offset:
+    def write(self, index, key: Key, hash_: Hash, doc: Doc) -> Offset:
         record = {"record": doc, "hash_": hash_}
-        response = self._deserialize(self._execute("write", key, **record))
+        response = self._deserialize(self._execute("write", index, key, **record))
 
         return self._handle_response(response)
 
-    def read(self, key: Key):
-        response = self._deserialize(self._execute("read", key))
+    def read(self, index, key: Key):
+        response = self._deserialize(self._execute("read", index, key))
 
         return self._handle_response(response)
 
-    def pop(self, key: Key):
-        response = self._deserialize(self._execute("pop", key))
+    def pop(self, index, key: Key):
+        response = self._deserialize(self._execute("pop", index, key))
 
         return self._handle_response(response)
 
-    def remove(self, key: Key):
-        response = self._deserialize(self._execute("remove", key))
+    def remove(self, index, key: Key):
+        response = self._deserialize(self._execute("remove", index, key))
 
         return self._handle_response(response)
 
@@ -45,8 +45,8 @@ class ShardClient(ClientBase):
 
         return self._handle_response(response)
 
-    def reloc(self, key, addr):
-        response = self._deserialize(self._execute("reloc", key, addr))
+    def reloc(self, index, key, addr):
+        response = self._deserialize(self._execute("reloc", index, key, addr))
 
         return self._handle_response(response)
 
@@ -82,5 +82,10 @@ class ShardClient(ClientBase):
 
     def update_distr(self):
         response = self._deserialize(self._execute("update_distr"))
+
+        return self._handle_response(response)
+
+    def create_index(self, index):
+        response = self._deserialize(self._execute("create_index", index))
 
         return self._handle_response(response)

@@ -1,11 +1,12 @@
 from collections import defaultdict
 
+from ..storage import InMemoryStorage
 from .client import ShardClient
 from ..utils import get_size
 
 
 class Shard:
-    def __init__(self, start, end, storage_class=dict, max_size=1024, bins_num=5,
+    def __init__(self, start, end, storage_class=InMemoryStorage, max_size=1024, bins_num=5,
                  buffer_size=1024,
                  **storage_kwargs):
         self._empty = True
@@ -67,23 +68,22 @@ class Shard:
 
     @property
     def empty(self):
-        return len(self.storage) == 0
+        return self.storage.empty
 
     @property
     def free_mem(self):
         return self.max_size - self.size
 
-    def write(self, key, hash_, record):
+    def write(self, index, key, hash_, record):
         item_size = get_size(record)
-        if self.size + item_size > self.max_size:
+        if self.size + item_size > self.max_size:  # TODO replace memory control to storage
             raise MemoryError(f'Wow! Such data! So big!')
-
-        if key in self.storage:
-            return 0
 
         doc = {'hash_': hash_, 'record': record}
 
-        self.storage[key] = doc
+        offset = self.storage.write(index, key, doc)
+        if offset == 0:  # TODO replace memory control to storage
+            return 0
 
         self.size += item_size
 
@@ -92,11 +92,11 @@ class Shard:
 
         return item_size
 
-    def read(self, key):
-        return self.storage.get(key, None)
+    def read(self, index, key):
+        return self.storage.read(index, key)
 
-    def pop(self, key):
-        doc = self.storage.pop(key, None)
+    def pop(self, index, key):
+        doc = self.storage.pop(index, key)
         if doc is None:
             return
 
@@ -108,8 +108,8 @@ class Shard:
 
         return doc
 
-    def remove(self, key):
-        doc = self.storage.pop(key, None)
+    def remove(self, index, key):
+        doc = self.storage.pop(index, key)
         if doc is None:
             return 0
 
@@ -121,14 +121,17 @@ class Shard:
 
         return item_size
 
-    def reloc(self, key, pipe: ShardClient):
+    def reloc(self, index, key, pipe: ShardClient):
         # relocates item from remote shard
-        item = pipe.pop(key)
+        item = pipe.pop(index, key)
 
         if item:
-            return self.write(key, **item)
+            return self.write(index, key, **item)
         else:
             return 0
+
+    def create_index(self, index):
+        self.storage.create_index(index)
 
     def get_stat(self):
         stat = {
