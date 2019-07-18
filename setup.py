@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='pyshard',
-    version='0.0.1',
+    version='0.0.2',
     description='Distributed key-value storage in Python stdlib',
     long_description=long_description,
     long_description_content_type="text/markdown",
