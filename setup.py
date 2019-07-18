@@ -5,12 +5,13 @@ with open("README.md", "r") as fh:
 
 setup(
     name='pyshard',
-    version='0.1',
+    version='0.0.1',
     description='Distributed key-value storage in Python stdlib',
     long_description=long_description,
+    long_description_content_type="text/markdown",
     author='la9ran9e',
     author_email="tvauritimur@gmail.com",
-    uri='https://github.com/la9ran9e/pyshard',
+    url='https://github.com/la9ran9e/pyshard',
     packages=[
         'pyshard',
         'pyshard.app',
