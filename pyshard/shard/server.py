@@ -133,3 +133,7 @@ class ShardServer(_Server):
     @_Server.endpoint('create_index')
     async def create_index(self, index):
         self._shard.create_index(index)
+
+    @_Server.endpoint('keys')
+    async def keys(self, index):
+        return self._shard.keys(index)

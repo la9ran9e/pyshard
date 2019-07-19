@@ -20,6 +20,12 @@ setup(
         'pyshard.shard',
         'pyshard.settings',
         'pyshard.utils',
-        'pyshard.storage'
-    ]
+        'pyshard.storage',
+        'pyshard.console'
+    ],
+    entry_points={
+        'console_scripts': [
+            'pyshard=pyshard.console.pyshard:main'
+        ]
+    }
 )

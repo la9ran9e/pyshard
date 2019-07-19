@@ -89,3 +89,8 @@ class ShardClient(ClientBase):
         response = self._deserialize(self._execute("create_index", index))
 
         return self._handle_response(response)
+
+    def keys(self, index):  # TODO: bulk operation
+        response = self._deserialize(self._execute("keys", index))
+
+        return self._handle_response(response)
