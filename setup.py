@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='pyshard',
-    version='0.0.2',
+    version='0.2.0',
     description='Distributed key-value storage in Python stdlib',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -20,6 +20,12 @@ setup(
         'pyshard.shard',
         'pyshard.settings',
         'pyshard.utils',
-        'pyshard.storage'
-    ]
+        'pyshard.storage',
+        'pyshard.console'
+    ],
+    entry_points={
+        'console_scripts': [
+            'pyshard=pyshard.console.pyshard:main'
+        ]
+    }
 )

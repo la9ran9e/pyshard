@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/la9ran9e/pyshard.svg?branch=master)](https://travis-ci.org/la9ran9e/pyshard)
 [![Code Coverage Status](https://codecov.io/gh/la9ran9e/pyshard/branch/master/graph/badge.svg)](https://codecov.io/gh/la9ran9e/pyshard)
-[![PyPI version](https://badge.fury.io/py/pyshard.svg)](https://badge.fury.io/py/pyshard)
+[![PyPI](https://img.shields.io/pypi/v/pyshard.svg)](https://pypi.org/project/pyshard/)
 
 Pyshard is a complete distributed key-value data storage 
 written in Python using only standard library tools.
@@ -122,6 +122,38 @@ Now shards have got configurations from bootstrap service and ready.
 >>> app.pop('test_index', 'test1')
 {'hash_': 0.8204544, 'record': {'hello': 'world'}}
 ```
+
+### Utilities
+
+Since version 0.2.0 Pyshard has several console utilities. They are made to simplify some operations like `cat` or massive write.
+
+
+Let's make file with data. Row format: `{key}|{value}`:
+
+```bash
+printf '1|test\n2|{"test": "test"}\n3|42\n4|0.9\n' > test_write.txt
+```
+We can add this rows to storage using `pyshard write` command.
+```bash
+
+cat test_write.txt | pyshard write test_index --force
+
+```
+`--force` oprion for creating index `test_index` if it's not exist
+
+
+So let's `cat` storage with index `test_index`:
+```bash
+pyshard cat test0_index
+```
+Command will log results to stdout:
+```
+2|{"hash_": 0.2258304, "record": {"test": "test"}}
+3|{"hash_": 0.1904896, "record": 42}
+1|{"hash_": 0.8102784, "record": "test"}
+4|{"hash_": 0.7252864, "record": 0.9}
+```
+
 
 ## TODO
 * Index (data tables equivalent)
