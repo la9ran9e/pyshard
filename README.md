@@ -144,7 +144,7 @@ cat test_write.txt | pyshard write test_index --force
 
 So let's `cat` storage with index `test_index`:
 ```bash
-pyshard cat test0_index
+pyshard cat test_index
 ```
 Command will log results to stdout:
 ```
