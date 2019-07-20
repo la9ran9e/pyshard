@@ -58,3 +58,7 @@ class InMemoryStorage(BaseStorage):
             raise IndexNotFoundError(index)
 
         return self._storage[index]
+
+    def keys(self, index):
+        collection = self._get_index(index)
+        return list(collection.keys())

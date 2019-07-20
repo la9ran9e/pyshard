@@ -93,6 +93,10 @@ class Master(MasterABC):
     def __init__(self, shards: dict, hash_method: str='md5'):
         self._shards = shards
         self._hash_method = hash_method
+
+    @property
+    def shards(self):
+        return self._shards.values()
     
     def get_shard(self, index, key):
         key_comp = self._join_key(index, key)
