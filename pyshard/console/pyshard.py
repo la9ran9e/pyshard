@@ -15,6 +15,8 @@ def _register(name):
     def _wrapper(func):
         REGISTRY[name] = func
 
+        return func
+
     return _wrapper
 
 
