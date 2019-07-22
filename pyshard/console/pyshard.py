@@ -43,11 +43,11 @@ def dispatch_and_execute(args):
 def cat(index, bootstrap_server=None):
     bootstrap_server = _retrieve_bootstrap_server(bootstrap_server)
 
-    app = Pyshard(bootstrap_server=bootstrap_server)
-    for key in app.keys(index):
-        doc = app.read(index, key)
-        sys.stdout.write(f'{key}{SEPARATOR}{json.dumps(doc)}\n')
-        sys.stdout.flush()
+    with Pyshard(bootstrap_server=bootstrap_server) as app:
+        for key in app.keys(index):
+            doc = app.read(index, key)
+            sys.stdout.write(f'{key}{SEPARATOR}{json.dumps(doc)}\n')
+            sys.stdout.flush()
 
 
 def _process_doc(raw_doc):
@@ -77,14 +77,14 @@ def isfloat(raw_doc):
 def write(index, bootstrap_server=None, force=False):
     bootstrap_server = _retrieve_bootstrap_server(bootstrap_server)
 
-    app = Pyshard(bootstrap_server=bootstrap_server)
-    if force:
-        app.create_index(index)
+    with Pyshard(bootstrap_server=bootstrap_server) as app:
+        if force:
+            app.create_index(index)
 
-    for line in sys.stdin:
-        key, raw_doc = line.rstrip('\n').split(SEPARATOR)
-        doc = _process_doc(raw_doc)
-        app.write(index, key, doc)
+        for line in sys.stdin:
+            key, raw_doc = line.rstrip('\n').split(SEPARATOR)
+            doc = _process_doc(raw_doc)
+            app.write(index, key, doc)
 
 
 def _retrieve_bootstrap_server(bootstrap_server):

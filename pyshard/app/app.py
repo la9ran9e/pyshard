@@ -86,3 +86,13 @@ class Pyshard(PyshardABC):
         for shard in self._master.shards:
             for key in shard.keys(index):
                 yield key
+
+    def close(self):
+        self._bootstrap_client.close()
+        self._master.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

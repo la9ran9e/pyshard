@@ -87,6 +87,8 @@ class MasterABC(abc.ABC):
     def get_shard(self, index, key: Key) -> Tuple[Hash, ShardClient]: ...
     @abc.abstractmethod
     def create_index(self, index): ...
+    @abc.abstractmethod
+    def close(self): ...
 
 
 class Master(MasterABC):
@@ -124,6 +126,9 @@ class Master(MasterABC):
         # TODO: update meta for additional shards
         for shard in self._shards.values():  # TODO: remove values method
             shard.create_index(index)
+
+    def close(self):
+        self._shards.close()
 
 # class Master:
 #   _shard = Shard
@@ -312,6 +317,10 @@ class _Shards(dict):
         finally:
             for shard in self.values():
                 shard.release_shard()
+
+    def close(self):
+        for shard in self.values():
+            shard.close()
 
     def __setitem__(self, key, value):
         super(_Shards, self).__setitem__(key, value)
