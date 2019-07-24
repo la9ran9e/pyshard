@@ -139,7 +139,7 @@ We can add this rows to storage using `pyshard write` command.
 cat test_write.txt | pyshard write test_index --force
 
 ```
-`--force` oprion for creating index `test_index` if it's not exist
+`--force` oprion for creating index `test_index` if it does not exist
 
 
 So let's `cat` storage with index `test_index`:
