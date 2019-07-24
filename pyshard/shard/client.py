@@ -94,3 +94,20 @@ class ShardClient(ClientBase):
         response = self._deserialize(self._execute("keys", index))
 
         return self._handle_response(response)
+
+    def set_maxsize(self, size):
+        response = self._deserialize(self._execute("set_maxsize", size))
+
+        return self._handle_response(response)
+
+    @property
+    def name(self):
+        response = self._deserialize(self._execute("get_name"))
+
+        return self._handle_response(response)
+
+    @name.setter
+    def name(self, name):
+        response = self._deserialize(self._execute("set_name", name))
+
+        self._handle_response(response)

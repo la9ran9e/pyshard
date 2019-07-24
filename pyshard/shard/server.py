@@ -137,3 +137,18 @@ class ShardServer(_Server):
     @_Server.endpoint('keys')
     async def keys(self, index):
         return self._shard.keys(index)
+
+    @_Server.endpoint('get_name')
+    async def get_name(self):
+        return self._shard.name
+
+    @_Server.endpoint('set_name', permission_group='master')
+    async def set_name(self, name):
+        self._shard.name = name
+
+    @_Server.endpoint('set_maxsize', permission_group='master')
+    async def set_maxsize(self, size):
+        assert size > self._shard.size, f'Can\'t apply {size}b. ' \
+                                        f'Current size: {self._shard.size}b'
+
+        self._shard.max_size = size

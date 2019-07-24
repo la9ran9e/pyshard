@@ -9,6 +9,7 @@ class Shard:
     def __init__(self, start, end, storage_class=InMemoryStorage, max_size=1024, bins_num=5,
                  buffer_size=1024,
                  **storage_kwargs):
+        self._name = None
         self._empty = True
         self.storage = storage_class(**storage_kwargs)
         self._buffer_size = buffer_size
@@ -20,6 +21,14 @@ class Shard:
         self._bins_num = bins_num
         self._bin_step = self.estimate_bin_step()
         self._distr = defaultdict(int)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
 
     @property
     def distr(self):

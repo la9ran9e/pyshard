@@ -18,3 +18,8 @@ class MasterClient(ClientBase):
         response = self._deserialize(self._execute("get_map"))
 
         return self._handle_response(response)
+
+    def stat(self):
+        response = self._deserialize(self._execute("stat"))
+
+        return self._handle_response(response)

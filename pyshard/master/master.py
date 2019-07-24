@@ -88,6 +88,8 @@ class MasterABC(abc.ABC):
     @abc.abstractmethod
     def create_index(self, index): ...
     @abc.abstractmethod
+    def stat(self): ...
+    @abc.abstractmethod
     def close(self): ...
 
 
@@ -97,7 +99,7 @@ class Master(MasterABC):
         self._hash_method = hash_method
 
     @property
-    def shards(self):
+    def shards(self):  # TODO: remove values method
         return self._shards.values()
     
     def get_shard(self, index, key):
@@ -123,9 +125,16 @@ class Master(MasterABC):
         return bin_, hash_
 
     def create_index(self, index):
-        # TODO: update meta for additional shards
-        for shard in self._shards.values():  # TODO: remove values method
+        # TODO: update meta (for additional shards)
+        for shard in self.shards:
             shard.create_index(index)
+
+    def stat(self):
+        stat = {}
+        for shard in self.shards:
+            stat[shard.name] = shard.get_stat()
+
+        return stat
 
     def close(self):
         self._shards.close()
@@ -248,6 +257,7 @@ def _bootstrap(conf_path=None, *args, **kwargs):
     shards.get_master_role(master_token)
     with shards.lock():
         _mark_shards(shards, config['shards'])
+        _config_shards(shards, config['shards'])
 
     return shards
 
@@ -262,7 +272,10 @@ def _get_config(conf_path=None):
 
     shards = config['shards']
 
-    # TODO: check names existence and uniqueness
+    if _is_named(shards):
+        _check_names(shards)
+    else:
+        raise NotImplementedError()
 
     if _is_marked(shards):
         _check_markers(shards)
@@ -293,6 +306,29 @@ def _check_markers(shards):
         if mem_end != start:
             raise Exception("Shard start must equal to previous shard end or 0.0")
         mem_end = end
+
+
+def _is_named(shards):
+    names_c = 0
+    for shard in shards:
+        if 'name' in shard:
+            names_c += 1
+
+    if names_c == 0:
+        return False
+
+    assert names_c == len(shards), "Named selectively"
+
+    return True
+
+
+def _check_names(shards):
+    names = set()
+    for shard in shards:
+        name = shard['name']
+        if name in names:
+            raise KeyError(f'Name {name!r} already reserved')
+        names.add(name)
 
 
 class _Shards(dict):
@@ -342,7 +378,18 @@ def _mark_shards(shards, shards_conf):
         start, end = shard_conf['start'], shard_conf['end']
         shard.set_start(start)
         shard.set_end(end)
+
         shard.update_distr()
+
+
+def _config_shards(shards, shards_conf):
+    for shard, shard_conf in zip(shards.values(), shards_conf):
+        size = shard_conf.get('size', None)
+        if size:
+            shard.set_maxsize(size)
+
+        name = shard_conf['name']
+        shard.name = name
 
 
 class _Server(ServerBase): ...
@@ -368,3 +415,7 @@ class BootstrapServer(_Server):
     @_Server.endpoint('create_index')
     async def create_index(self, index):
         return self._master.create_index(index)
+
+    @_Server.endpoint('stat')
+    async def stat(self):
+        return self._master.stat()
