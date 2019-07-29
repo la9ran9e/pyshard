@@ -45,7 +45,7 @@ def cat(index, bootstrap_server=None):
 
     with Pyshard(bootstrap_server=bootstrap_server) as app:
         for key in app.keys(index):
-            doc = app.read(index, key)
+            doc = app.read(index, key).result
             sys.stdout.write(f'{key}{SEPARATOR}{json.dumps(doc)}\n')
             sys.stdout.flush()
 

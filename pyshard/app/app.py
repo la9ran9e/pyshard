@@ -5,20 +5,25 @@ from ..master.master import Master, _Shards
 from ..master.client import MasterClient
 from ..shard.client import ShardClient
 from ..core.client import ClientError
+from ..core.typing import Key, Doc, Hash
 
-Key = Union[int, float, str]
-Doc = Union[int, float, str, dict, list, tuple]
+
+class AbstractResult(abc.ABC):
+    @abc.abstractmethod
+    def result(self) -> Union[int, Doc]: ...
+    @abc.abstractmethod
+    def hash(self) -> Hash: ...
 
 
 class PyshardABC(abc.ABC):
     @abc.abstractmethod
-    def write(self, index, key: Key, doc: Doc) -> int: ...
+    def write(self, index, key: Key, doc: Doc) -> AbstractResult: ...
     @abc.abstractmethod
-    def read(self, index, key: Key) -> Doc: ...
+    def read(self, index, key: Key) -> AbstractResult: ...
     @abc.abstractmethod
-    def pop(self, index, key: Key) -> Doc: ...
+    def pop(self, index, key: Key) -> AbstractResult: ...
     @abc.abstractmethod
-    def remove(self, index, key: Key) -> int: ...
+    def remove(self, index, key: Key) -> AbstractResult: ...
     @abc.abstractmethod
     def create_index(self, index): ...
 
@@ -30,6 +35,20 @@ def _map_shards(bootstrap_client, **kwargs):
         shard_map[float(bin)] = ShardClient(*addr, **kwargs)
 
     return _Shards(shard_map)
+
+
+class Result(AbstractResult):
+    def __init__(self, result, hash_):
+        self._result = result
+        self._hash = hash_
+
+    @property
+    def result(self):
+        return self._result
+
+    @property
+    def hash(self):
+        return self._hash
 
 
 class Pyshard(PyshardABC):
@@ -45,39 +64,47 @@ class Pyshard(PyshardABC):
             offset = shard.write(index, key, hash_, doc)
         except ClientError as err:
             # log warning: err
-            return 0
+            res = 0
         else:
-            return offset
+            res = offset
+
+        return Result(res, hash_)
 
     def read(self, index, key):
-        _, shard = self._master.get_shard(index, key)
+        hash_, shard = self._master.get_shard(index, key)
         try:
             doc = shard.read(index, key)
         except ClientError as err:
             # log warning: err
-            return
+            res = None
         else:
-            return doc
+            res = doc
+
+        return Result(res, hash_)
         
     def pop(self, index, key):
-        _, shard = self._master.get_shard(index, key)
+        hash_, shard = self._master.get_shard(index, key)
         try:
             doc = shard.pop(index, key)
         except ClientError as err:
             # log warning: err
-            return
+            res = None
         else:
-            return doc
+            res = doc
+
+        return Result(res, hash_)
 
     def remove(self, index, key):
-        _, shard = self._master.get_shard(index, key)
+        hash_, shard = self._master.get_shard(index, key)
         try:
             offset = shard.remove(index, key)
         except ClientError as err:
             # log warning: err
-            return 0
+            res = 0
         else:
-            return offset
+            res = offset
+
+        return Result(res, hash_)
 
     def create_index(self, index):
         self._master.create_index(index)
