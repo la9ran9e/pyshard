@@ -13,6 +13,8 @@ class AbstractResult(abc.ABC):
     def result(self) -> Union[int, Doc]: ...
     @abc.abstractmethod
     def hash(self) -> Hash: ...
+    @abc.abstractmethod
+    def __iter__(self): ...
 
 
 class PyshardABC(abc.ABC):
@@ -50,6 +52,9 @@ class Result(AbstractResult):
     def hash(self):
         return self._hash
 
+    def __iter__(self):
+        yield from [self.result, self.hash]
+
 
 class Pyshard(PyshardABC):
     def __init__(self, bootstrap_server, buffer_size=1024, master_class=Master,
@@ -58,7 +63,7 @@ class Pyshard(PyshardABC):
         shards = _map_shards(self._bootstrap_client)  # TODO: add ShardClient kwargs
         self._master = master_class(shards=shards, **master_args)
 
-    def write(self, index, key, doc):
+    def write(self, index, key, doc) -> Result:
         hash_, shard = self._master.get_shard(index, key)
         try:
             offset = shard.write(index, key, hash_, doc)
@@ -70,7 +75,7 @@ class Pyshard(PyshardABC):
 
         return Result(res, hash_)
 
-    def read(self, index, key):
+    def read(self, index, key) -> Result:
         hash_, shard = self._master.get_shard(index, key)
         try:
             doc = shard.read(index, key)
@@ -82,7 +87,7 @@ class Pyshard(PyshardABC):
 
         return Result(res, hash_)
         
-    def pop(self, index, key):
+    def pop(self, index, key) -> Result:
         hash_, shard = self._master.get_shard(index, key)
         try:
             doc = shard.pop(index, key)
@@ -94,7 +99,7 @@ class Pyshard(PyshardABC):
 
         return Result(res, hash_)
 
-    def remove(self, index, key):
+    def remove(self, index, key) -> Result:
         hash_, shard = self._master.get_shard(index, key)
         try:
             offset = shard.remove(index, key)
