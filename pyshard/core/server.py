@@ -59,6 +59,25 @@ class _Channel(AsyncProtocol):
                 yield from_bytes(data, self._codec)
 
 
+class Endpoint:
+    def __init__(self, path, method, permission_group):
+        self._path = path
+        self._method = method
+        self._permission_group = permission_group
+
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def method(self):
+        return self._method
+
+    @property
+    def permission_group(self):
+        return self._permission_group
+
+
 def _auth(func):
     async def wrapper(self, *args, **kwargs):
         chan = await func(self, *args, **kwargs)
@@ -71,11 +90,8 @@ def _auth(func):
 
     return wrapper if settings.AUTH else func
 
-class ServerBase(AsyncProtocol):
-    __routes__ = dict()
-    __roles__ = set()
-    __permissions__ = defaultdict(set)
 
+class ServerBase(AsyncProtocol):
     def __init__(self, host, port, buffer_size, loop,
                  serialize=json.dumps, deserialize=json.loads,
                  backlog=5):
@@ -91,6 +107,12 @@ class ServerBase(AsyncProtocol):
         self._serialize = serialize
         self._deserialize = deserialize
 
+        self._routes = dict()
+        self._roles = set()
+        self._permissions = defaultdict(set)
+
+        self._discover_endpoints()
+
         super(ServerBase, self).__init__(buffer_size, loop)
 
     async def _do_run(self):
@@ -99,24 +121,33 @@ class ServerBase(AsyncProtocol):
                              self._main_loop())
 
     def _dispatch(self, endpoint):
-        return self.__routes__[endpoint]
+        return self._routes[endpoint]
+
+    def _discover_endpoints(self):
+        for key in dir(self):
+            attr = getattr(self, key)
+            if isinstance(attr, Endpoint):
+                self._init_endpoint(attr)
+
+    def _init_endpoint(self, endpoint):
+        if endpoint.permission_group:
+            self._roles.add(endpoint.permission_group)
+            self._permissions[endpoint.path].add(endpoint.permission_group)
+
+        self._routes[endpoint.path] = endpoint.method
 
     @classmethod
     def endpoint(cls, path, permission_group=None):
         def _wrapper(method):
-            if permission_group:
-                cls.__roles__.add(permission_group)
-                cls.__permissions__[path].add(permission_group)
-
-            cls.__routes__[path] = method
+            return Endpoint(path, method, permission_group)
 
         return _wrapper
 
     def _check_permission(self, chan, endpoint):
-        if not self.__permissions__[endpoint]:
+        if not self._permissions[endpoint]:
             return
 
-        if chan.permission_group not in self.__permissions__[endpoint]:
+        if chan.permission_group not in self._permissions[endpoint]:
             raise Exception("Permission denied")
 
     async def _dispatch_and_execute(self, chan, endpoint, *args, **kwargs):

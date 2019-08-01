@@ -42,6 +42,11 @@ class ShardServer(_Server):
     async def write(self, index, key, hash_, record):
         return self._shard.write(index, key, hash_, record)
 
+    @_Server.endpoint('has')
+    @_Server.with_shard_lock
+    async def has(self, index, key):
+        return self._shard.has(index, key)
+
     @_Server.endpoint('read')
     @_Server.with_shard_lock
     async def read(self, index, key):
@@ -109,7 +114,8 @@ class ShardServer(_Server):
         addr = tuple(addr)
         if settings.AUTH and not token:
             raise Exception('Token is required')
-        if role not in self.__roles__:
+        print(self.__dict__)
+        if role not in self._roles:
             raise Exception(f'Role {role!r} does not exists')
         try:
             chan = self._channels[addr]
@@ -123,7 +129,7 @@ class ShardServer(_Server):
         self._shard.start = value
 
     @_Server.endpoint('set_end', permission_group='master')
-    async def set_start(self, value):
+    async def set_end(self, value):
         self._shard.end = value
 
     @_Server.endpoint('update_distr', permission_group='master')

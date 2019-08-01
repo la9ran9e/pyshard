@@ -23,3 +23,8 @@ class MasterClient(ClientBase):
         response = self._deserialize(self._execute("stat"))
 
         return self._handle_response(response)
+
+    def create_index(self, index):
+        response = self._deserialize(self._execute("create_index", index))
+
+        return self._handle_response(response)

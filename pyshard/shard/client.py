@@ -20,6 +20,11 @@ class ShardClient(ClientBase):
 
         return self._handle_response(response)
 
+    def has(self, index, key: Key):
+        response = self._deserialize(self._execute("has", index, key))
+
+        return self._handle_response(response)
+
     def read(self, index, key: Key):
         response = self._deserialize(self._execute("read", index, key))
 

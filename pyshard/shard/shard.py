@@ -101,6 +101,9 @@ class Shard:
 
         return item_size
 
+    def has(self, index, key):
+        return self.storage.has(index, key)
+
     def read(self, index, key):
         return self.storage.read(index, key)
 

@@ -10,6 +10,10 @@ class InMemoryStorage(BaseStorage):
     def indexes(self):
         return self._storage.keys()
 
+    def has(self, index, key):
+        collection = self._get_index(index)
+        return key in collection
+
     def read(self, index, key):
         collection = self._get_index(index)
         return collection.get(key)

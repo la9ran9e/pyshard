@@ -75,6 +75,11 @@ class Pyshard(PyshardABC):
 
         return Result(res, hash_)
 
+    def has(self, index, key) -> Result:
+        hash_, shard = self._master.get_shard(index, key)
+
+        return Result(shard.has(index, key), hash_)
+
     def read(self, index, key) -> Result:
         hash_, shard = self._master.get_shard(index, key)
         try:
