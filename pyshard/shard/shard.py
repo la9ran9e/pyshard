@@ -12,6 +12,7 @@ class Shard:
         self._name = None
         self._empty = True
         self.storage = storage_class(**storage_kwargs)
+        self.storage.start()
         self._buffer_size = buffer_size
 
         self.size = 0
@@ -160,5 +161,5 @@ class Shard:
 
         return stat
 
-    def __getattr__(self, attr):
-        return getattr(self.storage, attr)
+    def close(self):
+        self.storage.stop()

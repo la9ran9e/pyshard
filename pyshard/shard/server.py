@@ -158,3 +158,12 @@ class ShardServer(_Server):
                                         f'Current size: {self._shard.size}b'
 
         self._shard.max_size = size
+
+    def close(self):
+        self._shard.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()

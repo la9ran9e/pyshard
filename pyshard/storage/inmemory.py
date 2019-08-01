@@ -1,10 +1,14 @@
+import os
+import json
+
 from .base import BaseStorage
 from .errors import IndexNotFoundError, IndexExistsError
 
 
 class InMemoryStorage(BaseStorage):
-    def __init__(self):
+    def __init__(self, dump_filepath=None):
         self._storage = dict()
+        self._dump_filepath = dump_filepath
 
     @property
     def indexes(self):
@@ -66,3 +70,32 @@ class InMemoryStorage(BaseStorage):
     def keys(self, index):
         collection = self._get_index(index)
         return list(collection.keys())
+
+    def start(self):
+        if not self._dump_filepath:
+            return
+
+        if os.path.exists(self._dump_filepath):
+            with open(self._dump_filepath, 'r') as f:
+                self._load_dump(f)
+
+    def _load_dump(self, file):
+        data = json.load(file)
+        self._storage = data
+
+    def stop(self):
+        if not self._dump_filepath:
+            return
+
+        with open(self._dump_filepath, 'w') as f:
+            self._dump(f)
+
+    def _dump(self, file):
+        json.dump(self._storage, file)
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
