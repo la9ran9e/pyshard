@@ -5,8 +5,15 @@ python:
 install:
   - pip install codecov
   - pip install .
+
+before_script:
+  - make testenv-start
+
 script:
   - make test
 
 after_success:
   - codecov
+
+after_script:
+  - make testenv-kill
