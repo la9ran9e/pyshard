@@ -172,11 +172,49 @@ class ConnectionBase(ConnectionABC, Protocol):
         raise NotImplementedError()
 
 
+class AsyncConnectionBase(ConnectionABC, AsyncProtocol):
+    def __init__(self, host: str=None, port: int=None, **protocol_kwargs):
+        if host and port:
+            self._addr = (host, port)
+
+        super(AsyncConnectionBase, self).__init__(**protocol_kwargs)
+
+    def connect(self):
+        raise NotImplementedError()
+
+    async def send(self, str_obj):
+        bytes_obj = _to_bytes(str_obj, self._codec)
+        await self.do_send(bytes_obj, self._sock)
+
+    async def recv(self):
+        bytes_obj = await self.do_recv(self._sock)
+        return _from_bytes(bytes_obj, self._codec)
+
+    def close(self):
+        raise NotImplementedError()
+
+
 class TCPConnection(ConnectionBase):
     def __init__(self, *args, **kwargs):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         super(TCPConnection, self).__init__(*args, **kwargs)
+
+    def connect(self):
+        self._sock.connect(self._addr)
+
+    def getsockname(self):
+        return self._sock.getsockname()
+
+    def close(self):
+        self._sock.close()
+
+
+class AsyncTCPConnection(AsyncConnectionBase):
+    def __init__(self, *args, **kwargs):
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        super(AsyncTCPConnection, self).__init__(*args, **kwargs)
 
     def connect(self):
         self._sock.connect(self._addr)

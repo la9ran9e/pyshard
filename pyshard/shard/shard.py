@@ -146,6 +146,9 @@ class Shard:
     def create_index(self, index):
         self.storage.create_index(index)
 
+    def drop_index(self, index):
+        self.storage.drop_index(index)
+
     def keys(self, index):
         return self.storage.keys(index)
 

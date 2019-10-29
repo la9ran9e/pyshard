@@ -140,6 +140,10 @@ class ShardServer(_Server):
     async def create_index(self, index):
         self._shard.create_index(index)
 
+    @_Server.endpoint("drop_index")
+    async def drop_index(self, index):
+        self._shard.drop_index(index)
+
     @_Server.endpoint('keys')
     async def keys(self, index):
         return self._shard.keys(index)

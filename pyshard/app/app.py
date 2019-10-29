@@ -119,6 +119,9 @@ class Pyshard(PyshardABC):
     def create_index(self, index):
         self._master.create_index(index)
 
+    def drop_index(self, index):
+        self._master.drop_index(index)
+
     def keys(self, index):
         for shard in self._master.shards:
             for key in shard.keys(index):

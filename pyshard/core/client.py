@@ -2,7 +2,7 @@ import abc
 from typing import Any
 import json
 
-from .connect import ConnectionABC, TCPConnection
+from .connect import ConnectionABC, TCPConnection, AsyncTCPConnection
 
 
 Payload = dict
@@ -40,12 +40,12 @@ class ClientError(Exception): ...
 
 
 class ClientBase(ClientABC):
-    def __init__(self, host, port, connector: ConnectionABC=TCPConnection, 
-                 serialyzer: type=Serialyzer, **conn_kwargs):
+    def __init__(self, host, port, transport_class=TCPConnection,
+                 serialyzer=Serialyzer, **conn_kwargs):
         self.addr = (host, port)
         self._serialyzer = serialyzer
-        self._conn = connector(host, port, **conn_kwargs)
-        self._conn.connect()
+        self._transport = transport_class(host, port, **conn_kwargs)
+        self._transport.connect()
 
     def _serialize(self, payload):
         return self._serialyzer.dump(payload)
@@ -58,8 +58,44 @@ class ClientBase(ClientABC):
                    'args': args,
                    'kwargs': kwargs}
 
-        self._conn.send(self._serialize(payload))
-        return self._conn.recv()
+        self._transport.send(self._serialize(payload))
+        return self._handle_response(self._deserialize(self._transport.recv()))
+
+    def _handle_response(self, response):
+        if response['type'] == 'error':
+            err = response['message']
+            raise ClientError(f'Couldn\'t execute: {err}')
+
+        return response['message']
+
+    def getsockname(self):
+        return self._transport.getsockname()
+
+    def close(self) -> None:
+        self._transport.close()
+
+
+class AsyncClientBase(ClientABC):
+    def __init__(self, host, port, connector_class=AsyncTCPConnection,
+                 serialyzer=Serialyzer, **conn_kwargs):
+        self.addr = (host, port)
+        self._serialyzer = serialyzer
+        self._conn = connector_class(host, port, **conn_kwargs)
+        self._conn.connect()
+
+    def _serialize(self, payload):
+        return self._serialyzer.dump(payload)
+
+    def _deserialize(self, response):
+        return self._serialyzer.load(response)
+
+    async def _execute(self, method, *args, **kwargs):
+        payload = {'endpoint': method,
+                   'args': args,
+                   'kwargs': kwargs}
+
+        await self._conn.send(self._serialize(payload))
+        return await self._conn.recv()
 
     def _handle_response(self, response):
         if response['type'] == 'error':

@@ -14,11 +14,17 @@ class TestCommands(unittest.TestCase):
         ('test3', {'test': 'test'}),
         # ('test4', ['test0', 'test1'])
     ]
+    app = None
 
     @classmethod
     def setUpClass(cls):
         cls.app = Pyshard(bootstrap_server=settings.BOOTSTRAP_SERVER)
         cls.app.create_index(cls.TEST_INDEX)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.app:
+            cls.app.drop_index(cls.TEST_INDEX)
 
     def test_types(self):
         for key, doc in self.TYPE_CASES:

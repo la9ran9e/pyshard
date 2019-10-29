@@ -129,6 +129,11 @@ class Master(MasterABC):
         for shard in self.shards:
             shard.create_index(index)
 
+    def drop_index(self, index):
+        # TODO: update meta (for additional shards)
+        for shard in self.shards:
+            shard.drop_index(index)
+
     def stat(self):
         stat = {}
         for shard in self.shards:

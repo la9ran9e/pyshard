@@ -1,30 +1,24 @@
 from typing import Union, List, Any
 from ..core.client import ClientBase
-
+from ..core.connect import AsyncTCPConnection
 
 Key = Union[int, float, str]
 
+
 class MasterClient(ClientBase):
-    def __init__(self, *args, **kwargs):
-        
-        super(MasterClient, self).__init__(*args, **kwargs)
-
     def get_shard(self, key):
-        response = self._deserialize(self._execute("get_shard", key))
-
-        return self._handle_response(response)
+        return self._execute("get_shard", key)
 
     def get_map(self):
-        response = self._deserialize(self._execute("get_map"))
-
-        return self._handle_response(response)
+        return self._execute("get_map")
 
     def stat(self):
-        response = self._deserialize(self._execute("stat"))
-
-        return self._handle_response(response)
+        return self._execute("stat")
 
     def create_index(self, index):
-        response = self._deserialize(self._execute("create_index", index))
+        return self._execute("create_index", index)
 
-        return self._handle_response(response)
+
+class AsyncMasterClient(MasterClient):
+    def __init__(self, host, port, transport_class=AsyncTCPConnection, **kwargs):
+        super(AsyncMasterClient, self).__init__(host, port, transport_class, **kwargs)

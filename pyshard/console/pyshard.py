@@ -4,6 +4,7 @@ import inspect
 import json
 
 from pyshard import Pyshard
+from pyshard.core.client import ClientError
 from pyshard.settings import settings
 
 
@@ -79,7 +80,10 @@ def write(index, bootstrap_server=None, force=False):
 
     with Pyshard(bootstrap_server=bootstrap_server) as app:
         if force:
-            app.create_index(index)
+            try:
+                app.create_index(index)
+            except ClientError:
+                print(f"Index {index!r} already exists", file=sys.stderr)
 
         for line in sys.stdin:
             key, raw_doc = line.rstrip('\n').split(SEPARATOR)
